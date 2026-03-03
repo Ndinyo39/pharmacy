@@ -1,7 +1,6 @@
 const express = require("express");
 const cors = require("cors");
-const sqlite3 = require("sqlite3").verbose();
-const path = require("path");
+const { Pool } = require("pg");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
@@ -10,39 +9,47 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-/* ===============================
-   DATABASE CONNECTION (SQLite)
-================================ */
+/* ================================
+   DATABASE CONNECTION (PostgreSQL - Supabase)
+=============================== */
 
-const dbPath = path.resolve(__dirname, "pharmacy.db");
-
-const db = new sqlite3.Database(dbPath, (err) => {
-  if (err) {
-    console.error("Database connection failed:", err);
-  } else {
-    console.log("SQLite Database Connected");
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL || 'postgresql://postgres.tfqcadngkvjsxeinmfbz:Pssw0rd@2026@aws-1-eu-north-1.pooler.supabase.com:6543/postgres',
+  ssl: {
+    rejectUnauthorized: false
   }
 });
 
-/* ===============================
-   CREATE TABLES IF NOT EXISTS
-================================ */
+pool.on('connect', () => {
+  console.log('PostgreSQL Database Connected');
+});
 
-db.serialize(() => {
-  db.run(`
+pool.on('error', (err) => {
+  console.error('Database connection error:', err);
+});
+
+/* ================================
+   CREATE TABLES IF NOT EXISTS
+=============================== */
+
+const initDatabase = async () => {
+  // Users table
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       name TEXT,
       email TEXT UNIQUE,
       password TEXT,
       role TEXT DEFAULT 'pharmacist',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      status TEXT DEFAULT 'active',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
 
-  db.run(`
+  // Medicines table
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS medicines (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       name TEXT,
       generic_name TEXT,
       batch_number TEXT,
@@ -51,1245 +58,697 @@ db.serialize(() => {
       selling_price REAL,
       quantity INTEGER,
       expiry_date TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      category TEXT,
+      description TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
 
-  db.run(`
+  // Customers table
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS customers (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       name TEXT,
       email TEXT,
       phone TEXT,
       address TEXT,
       city TEXT,
       loyalty_points INTEGER DEFAULT 0,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
 
-  db.run(`
+  // Suppliers table
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS suppliers (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       name TEXT,
       email TEXT,
       phone TEXT,
       address TEXT,
       city TEXT,
       company_name TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
 
-  db.run(`
+  // Sales transactions table
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS sales_transactions (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      customer_id INTEGER,
-      medicine_id INTEGER,
+      id SERIAL PRIMARY KEY,
+      customer_id INTEGER REFERENCES customers(id),
+      medicine_id INTEGER REFERENCES medicines(id),
       quantity INTEGER,
       unit_price REAL,
       total_amount REAL,
-      transaction_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-      payment_method TEXT,
-      FOREIGN KEY (customer_id) REFERENCES customers(id),
-      FOREIGN KEY (medicine_id) REFERENCES medicines(id)
+      transaction_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      payment_method TEXT
     )
   `);
 
-  db.run(`
+  // Prescriptions table
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS prescriptions (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      customer_id INTEGER,
-      medicine_id INTEGER,
+      id SERIAL PRIMARY KEY,
+      customer_id INTEGER REFERENCES customers(id),
+      medicine_id INTEGER REFERENCES medicines(id),
       quantity INTEGER,
       prescribed_by TEXT,
-      prescription_date TEXT,
-      expiry_date TEXT,
+      prescription_date DATE,
+      expiry_date DATE,
       notes TEXT,
       status TEXT DEFAULT 'pending',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (customer_id) REFERENCES customers(id),
-      FOREIGN KEY (medicine_id) REFERENCES medicines(id)
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
 
-  // Superadmin: Pharmacies Table
-  db.run(`
+  // Pharmacies table
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS pharmacies (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT UNIQUE,
+      id SERIAL PRIMARY KEY,
+      name TEXT,
       address TEXT,
       city TEXT,
       phone TEXT,
       email TEXT,
       license_number TEXT,
       status TEXT DEFAULT 'active',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
 
-  // Superadmin: Branches Table
-  db.run(`
+  // Branches table
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS branches (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      pharmacy_id INTEGER,
+      id SERIAL PRIMARY KEY,
+      pharmacy_id INTEGER REFERENCES pharmacies(id),
       name TEXT,
       address TEXT,
       city TEXT,
       phone TEXT,
-      manager_id INTEGER,
+      manager_id INTEGER REFERENCES users(id),
       status TEXT DEFAULT 'active',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (pharmacy_id) REFERENCES pharmacies(id),
-      FOREIGN KEY (manager_id) REFERENCES users(id)
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
 
-  // Superadmin: Audit Logs Table
-  db.run(`
+  // Settings table
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS settings (
+      id SERIAL PRIMARY KEY,
+      setting_key TEXT UNIQUE,
+      setting_value TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Audit logs table
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS audit_logs (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER,
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id),
       action TEXT,
       entity_type TEXT,
       entity_id INTEGER,
       old_value TEXT,
       new_value TEXT,
-      ip_address TEXT,
-      timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (user_id) REFERENCES users(id)
+      timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
 
-  // Superadmin: System Settings Table
-  db.run(`
-    CREATE TABLE IF NOT EXISTS system_settings (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      setting_key TEXT UNIQUE,
-      setting_value TEXT,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
+  console.log('All tables created successfully');
+};
 
-  // Superadmin: Login History Table
-  db.run(`
-    CREATE TABLE IF NOT EXISTS login_history (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER,
-      login_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-      logout_time DATETIME,
-      ip_address TEXT,
-      status TEXT DEFAULT 'active',
-      FOREIGN KEY (user_id) REFERENCES users(id)
-    )
-  `);
+// Initialize database
+initDatabase().catch(console.error);
 
-  // Update users table to include status and branch_id
-  db.run(
-    `ALTER TABLE users ADD COLUMN status TEXT DEFAULT 'active'`,
-    (err) => {
-      // Column might already exist, ignore error
-    }
-  );
+/* ================================
+   AUTHENTICATION MIDDLEWARE
+=============================== */
 
-  db.run(
-    `ALTER TABLE users ADD COLUMN branch_id INTEGER`,
-    (err) => {
-      // Column might already exist, ignore error
-    }
-  );
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
 
-  db.run(
-    `ALTER TABLE users ADD COLUMN last_login DATETIME`,
-    (err) => {
-      // Column might already exist, ignore error
-    }
-  );
-});
-
-
-/* ===============================
-   AUTHENTICATION ROUTES
-================================ */
-
-// Register
-app.post("/api/register", async (req, res) => {
-  const { name, email, password, role } = req.body;
-
-  if (!name || !email || !password) {
-    return res.status(400).json({ message: "All fields required" });
+  if (!token) {
+    return res.status(401).json({ error: 'Access token required' });
   }
 
-  const hashedPassword = await bcrypt.hash(password, 10);
-
-  db.run(
-    `INSERT INTO users (name, email, password, role)
-     VALUES (?, ?, ?, ?)`,
-    [name, email, hashedPassword, role || "pharmacist"],
-    function (err) {
-      if (err) {
-        return res.status(400).json({ message: "Email already exists" });
-      }
-
-      res.status(201).json({
-        message: "User registered successfully",
-        userId: this.lastID,
-      });
+  jwt.verify(token, process.env.JWT_SECRET || 'default-secret-key', (err, user) => {
+    if (err) {
+      return res.status(403).json({ error: 'Invalid token' });
     }
-  );
+    req.user = user;
+    next();
+  });
+};
+
+/* ================================
+   AUTH ROUTES
+=============================== */
+
+// Register
+app.post('/api/register', async (req, res) => {
+  try {
+    const { name, email, password, role } = req.body;
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const result = await pool.query(
+      'INSERT INTO users (name, email, password, role) VALUES ($1, $2, $3, $4) RETURNING id, name, email, role',
+      [name, email, hashedPassword, role || 'pharmacist']
+    );
+
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    if (error.code === '23505') {
+      res.status(400).json({ error: 'Email already exists' });
+    } else {
+      res.status(500).json({ error: error.message });
+    }
+  }
 });
 
 // Login
-app.post("/api/login", (req, res) => {
-  const { email, password } = req.body;
+app.post('/api/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
 
-  db.get(
-    "SELECT * FROM users WHERE email = ?",
-    [email],
-    async (err, user) => {
-      if (err || !user) {
-        return res.status(400).json({ message: "Invalid credentials" });
-      }
+    const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
 
-      const isMatch = await bcrypt.compare(password, user.password);
-
-      if (!isMatch) {
-        return res.status(400).json({ message: "Invalid credentials" });
-      }
-
-      const token = jwt.sign(
-        { id: user.id, role: user.role },
-        process.env.JWT_SECRET || "supersecretkey",
-        { expiresIn: "8h" }
-      );
-
-      res.json({
-        message: "Login successful",
-        token,
-        user: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-        },
-      });
+    if (result.rows.length === 0) {
+      return res.status(400).json({ error: 'User not found' });
     }
-  );
-});
 
-/* ===============================
-   AUTH MIDDLEWARE
-================================ */
+    const user = result.rows[0];
+    const validPassword = await bcrypt.compare(password, user.password);
 
-function authenticateToken(req, res, next) {
-  const authHeader = req.headers["authorization"];
-  const token = authHeader && authHeader.split(" ")[1];
-
-  if (!token) return res.status(401).json({ message: "Access denied" });
-
-  jwt.verify(
-    token,
-    process.env.JWT_SECRET || "supersecretkey",
-    (err, user) => {
-      if (err) return res.status(403).json({ message: "Invalid token" });
-
-      req.user = user;
-      next();
+    if (!validPassword) {
+      return res.status(400).json({ error: 'Invalid password' });
     }
-  );
-}
 
-/* ===============================
-   PROTECTED DASHBOARD ROUTE
-================================ */
+    const token = jwt.sign(
+      { id: user.id, email: user.email, role: user.role },
+      process.env.JWT_SECRET || 'default-secret-key',
+      { expiresIn: '24h' }
+    );
 
-app.get("/api/dashboard", authenticateToken, (req, res) => {
-  res.json({
-    message: "Welcome to the Pharmacy Dashboard",
-    user: req.user,
-  });
-});
-
-/* ===============================
-   MEDICINE CRUD ROUTES
-================================ */
-
-// ADD MEDICINE
-app.post("/api/medicines", authenticateToken, (req, res) => {
-  const {
-    name,
-    generic_name,
-    batch_number,
-    barcode,
-    purchase_price,
-    selling_price,
-    quantity,
-    expiry_date,
-  } = req.body;
-
-  if (!name || !selling_price || !quantity) {
-    return res.status(400).json({ message: "Required fields missing" });
+    res.json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
-
-  db.run(
-    `INSERT INTO medicines 
-     (name, generic_name, batch_number, barcode, purchase_price, selling_price, quantity, expiry_date)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      name,
-      generic_name,
-      batch_number,
-      barcode,
-      purchase_price,
-      selling_price,
-      quantity,
-      expiry_date,
-    ],
-    function (err) {
-      if (err) {
-        return res.status(400).json({ message: "Error adding medicine" });
-      }
-
-      res.status(201).json({
-        message: "Medicine added successfully",
-        medicineId: this.lastID,
-      });
-    }
-  );
 });
 
-// GET ALL MEDICINES
-app.get("/api/medicines", authenticateToken, (req, res) => {
-  db.all("SELECT * FROM medicines", [], (err, rows) => {
-    if (err) {
-      return res.status(500).json({ message: "Error fetching medicines" });
-    }
+/* ================================
+   MEDICINES ROUTES
+=============================== */
 
-    res.json(rows);
-  });
-});
-
-// GET SINGLE MEDICINE
-app.get("/api/medicines/:id", authenticateToken, (req, res) => {
-  db.get(
-    "SELECT * FROM medicines WHERE id = ?",
-    [req.params.id],
-    (err, row) => {
-      if (err || !row) {
-        return res.status(404).json({ message: "Medicine not found" });
-      }
-
-      res.json(row);
-    }
-  );
-});
-
-// UPDATE MEDICINE
-app.put("/api/medicines/:id", authenticateToken, (req, res) => {
-  const { id } = req.params;
-  const {
-    name,
-    generic_name,
-    batch_number,
-    barcode,
-    purchase_price,
-    selling_price,
-    quantity,
-    expiry_date,
-  } = req.body;
-
-  db.run(
-    `UPDATE medicines
-     SET name = ?, generic_name = ?, batch_number = ?, barcode = ?,
-         purchase_price = ?, selling_price = ?, quantity = ?, expiry_date = ?
-     WHERE id = ?`,
-    [
-      name,
-      generic_name,
-      batch_number,
-      barcode,
-      purchase_price,
-      selling_price,
-      quantity,
-      expiry_date,
-      id,
-    ],
-    function (err) {
-      if (err) {
-        return res.status(400).json({ message: "Error updating medicine" });
-      }
-
-      res.json({ message: "Medicine updated successfully" });
-    }
-  );
-});
-
-// DELETE MEDICINE
-app.delete("/api/medicines/:id", authenticateToken, (req, res) => {
-  db.run(
-    "DELETE FROM medicines WHERE id = ?",
-    [req.params.id],
-    function (err) {
-      if (err) {
-        return res.status(400).json({ message: "Error deleting medicine" });
-      }
-
-      res.json({ message: "Medicine deleted successfully" });
-    }
-  );
-});
-
-/* ===============================
-   CUSTOMERS CRUD ROUTES
-================================ */
-
-// ADD CUSTOMER
-app.post("/api/customers", authenticateToken, (req, res) => {
-  const { name, email, phone, address, city } = req.body;
-
-  if (!name || !phone) {
-    return res.status(400).json({ message: "Name and phone required" });
+// Get all medicines
+app.get('/api/medicines', authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM medicines ORDER BY name');
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
-
-  db.run(
-    `INSERT INTO customers (name, email, phone, address, city)
-     VALUES (?, ?, ?, ?, ?)`,
-    [name, email, phone, address, city],
-    function (err) {
-      if (err) {
-        return res.status(400).json({ message: "Error adding customer" });
-      }
-
-      res.status(201).json({
-        message: "Customer added successfully",
-        customerId: this.lastID,
-      });
-    }
-  );
 });
 
-// GET ALL CUSTOMERS
-app.get("/api/customers", authenticateToken, (req, res) => {
-  db.all("SELECT * FROM customers", [], (err, rows) => {
-    if (err) {
-      return res.status(500).json({ message: "Error fetching customers" });
+// Get single medicine
+app.get('/api/medicines/:id', authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM medicines WHERE id = $1', [req.params.id]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Medicine not found' });
     }
-
-    res.json(rows);
-  });
-});
-
-// GET SINGLE CUSTOMER
-app.get("/api/customers/:id", authenticateToken, (req, res) => {
-  db.get(
-    "SELECT * FROM customers WHERE id = ?",
-    [req.params.id],
-    (err, row) => {
-      if (err || !row) {
-        return res.status(404).json({ message: "Customer not found" });
-      }
-
-      res.json(row);
-    }
-  );
-});
-
-// UPDATE CUSTOMER
-app.put("/api/customers/:id", authenticateToken, (req, res) => {
-  const { name, email, phone, address, city } = req.body;
-
-  db.run(
-    `UPDATE customers
-     SET name = ?, email = ?, phone = ?, address = ?, city = ?
-     WHERE id = ?`,
-    [name, email, phone, address, city, req.params.id],
-    function (err) {
-      if (err) {
-        return res.status(400).json({ message: "Error updating customer" });
-      }
-
-      res.json({ message: "Customer updated successfully" });
-    }
-  );
-});
-
-// DELETE CUSTOMER
-app.delete("/api/customers/:id", authenticateToken, (req, res) => {
-  db.run(
-    "DELETE FROM customers WHERE id = ?",
-    [req.params.id],
-    function (err) {
-      if (err) {
-        return res.status(400).json({ message: "Error deleting customer" });
-      }
-
-      res.json({ message: "Customer deleted successfully" });
-    }
-  );
-});
-
-/* ===============================
-   SUPPLIERS CRUD ROUTES
-================================ */
-
-// ADD SUPPLIER
-app.post("/api/suppliers", authenticateToken, (req, res) => {
-  const { name, email, phone, address, city, company_name } = req.body;
-
-  if (!name || !company_name) {
-    return res.status(400).json({ message: "Name and company name required" });
+    res.json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
-
-  db.run(
-    `INSERT INTO suppliers (name, email, phone, address, city, company_name)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-    [name, email, phone, address, city, company_name],
-    function (err) {
-      if (err) {
-        return res.status(400).json({ message: "Error adding supplier" });
-      }
-
-      res.status(201).json({
-        message: "Supplier added successfully",
-        supplierId: this.lastID,
-      });
-    }
-  );
 });
 
-// GET ALL SUPPLIERS
-app.get("/api/suppliers", authenticateToken, (req, res) => {
-  db.all("SELECT * FROM suppliers", [], (err, rows) => {
-    if (err) {
-      return res.status(500).json({ message: "Error fetching suppliers" });
-    }
-
-    res.json(rows);
-  });
-});
-
-// GET SINGLE SUPPLIER
-app.get("/api/suppliers/:id", authenticateToken, (req, res) => {
-  db.get(
-    "SELECT * FROM suppliers WHERE id = ?",
-    [req.params.id],
-    (err, row) => {
-      if (err || !row) {
-        return res.status(404).json({ message: "Supplier not found" });
-      }
-
-      res.json(row);
-    }
-  );
-});
-
-// UPDATE SUPPLIER
-app.put("/api/suppliers/:id", authenticateToken, (req, res) => {
-  const { name, email, phone, address, city, company_name } = req.body;
-
-  db.run(
-    `UPDATE suppliers
-     SET name = ?, email = ?, phone = ?, address = ?, city = ?, company_name = ?
-     WHERE id = ?`,
-    [name, email, phone, address, city, company_name, req.params.id],
-    function (err) {
-      if (err) {
-        return res.status(400).json({ message: "Error updating supplier" });
-      }
-
-      res.json({ message: "Supplier updated successfully" });
-    }
-  );
-});
-
-// DELETE SUPPLIER
-app.delete("/api/suppliers/:id", authenticateToken, (req, res) => {
-  db.run(
-    "DELETE FROM suppliers WHERE id = ?",
-    [req.params.id],
-    function (err) {
-      if (err) {
-        return res.status(400).json({ message: "Error deleting supplier" });
-      }
-
-      res.json({ message: "Supplier deleted successfully" });
-    }
-  );
-});
-
-/* ===============================
-   SALES/TRANSACTIONS ROUTES
-================================ */
-
-// CREATE SALE
-app.post("/api/sales", authenticateToken, (req, res) => {
-  const { customer_id, medicine_id, quantity, unit_price, payment_method } = req.body;
-
-  if (!medicine_id || !quantity || !unit_price) {
-    return res.status(400).json({ message: "Required fields missing" });
+// Create medicine
+app.post('/api/medicines', authenticateToken, async (req, res) => {
+  try {
+    const { name, generic_name, batch_number, barcode, purchase_price, selling_price, quantity, expiry_date, category, description } = req.body;
+    const result = await pool.query(
+      'INSERT INTO medicines (name, generic_name, batch_number, barcode, purchase_price, selling_price, quantity, expiry_date, category, description) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *',
+      [name, generic_name, batch_number, barcode, purchase_price, selling_price, quantity, expiry_date, category, description]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
-
-  const total_amount = quantity * unit_price;
-
-  db.run(
-    `INSERT INTO sales_transactions (customer_id, medicine_id, quantity, unit_price, total_amount, payment_method)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-    [customer_id, medicine_id, quantity, unit_price, total_amount, payment_method],
-    function (err) {
-      if (err) {
-        return res.status(400).json({ message: "Error creating sale" });
-      }
-
-      // Update medicine quantity
-      db.run(
-        `UPDATE medicines SET quantity = quantity - ? WHERE id = ?`,
-        [quantity, medicine_id],
-        (updateErr) => {
-          if (updateErr) {
-            return res.status(400).json({ message: "Error updating medicine stock" });
-          }
-
-          res.status(201).json({
-            message: "Sale recorded successfully",
-            saleId: this.lastID,
-            total_amount,
-          });
-        }
-      );
-    }
-  );
 });
 
-// GET ALL SALES
-app.get("/api/sales", authenticateToken, (req, res) => {
-  db.all(
-    `SELECT st.*, c.name as customer_name, m.name as medicine_name
-     FROM sales_transactions st
-     LEFT JOIN customers c ON st.customer_id = c.id
-     LEFT JOIN medicines m ON st.medicine_id = m.id
-     ORDER BY st.transaction_date DESC`,
-    [],
-    (err, rows) => {
-      if (err) {
-        return res.status(500).json({ message: "Error fetching sales" });
-      }
-
-      res.json(rows);
+// Update medicine
+app.put('/api/medicines/:id', authenticateToken, async (req, res) => {
+  try {
+    const { name, generic_name, batch_number, barcode, purchase_price, selling_price, quantity, expiry_date, category, description } = req.body;
+    const result = await pool.query(
+      'UPDATE medicines SET name = $1, generic_name = $2, batch_number = $3, barcode = $4, purchase_price = $5, selling_price = $6, quantity = $7, expiry_date = $8, category = $9, description = $10 WHERE id = $11 RETURNING *',
+      [name, generic_name, batch_number, barcode, purchase_price, selling_price, quantity, expiry_date, category, description, req.params.id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Medicine not found' });
     }
-  );
+    res.json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
-// GET SALES BY CUSTOMER
-app.get("/api/sales/customer/:id", authenticateToken, (req, res) => {
-  db.all(
-    `SELECT st.*, m.name as medicine_name
-     FROM sales_transactions st
-     LEFT JOIN medicines m ON st.medicine_id = m.id
-     WHERE st.customer_id = ?
-     ORDER BY st.transaction_date DESC`,
-    [req.params.id],
-    (err, rows) => {
-      if (err) {
-        return res.status(500).json({ message: "Error fetching sales" });
-      }
-
-      res.json(rows);
-    }
-  );
+// Delete medicine
+app.delete('/api/medicines/:id', authenticateToken, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM medicines WHERE id = $1', [req.params.id]);
+    res.json({ message: 'Medicine deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
-/* ===============================
+/* ================================
+   CUSTOMERS ROUTES
+=============================== */
+
+app.get('/api/customers', authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM customers ORDER BY name');
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/customers', authenticateToken, async (req, res) => {
+  try {
+    const { name, email, phone, address, city } = req.body;
+    const result = await pool.query(
+      'INSERT INTO customers (name, email, phone, address, city) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [name, email, phone, address, city]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.put('/api/customers/:id', authenticateToken, async (req, res) => {
+  try {
+    const { name, email, phone, address, city } = req.body;
+    const result = await pool.query(
+      'UPDATE customers SET name = $1, email = $2, phone = $3, address = $4, city = $5 WHERE id = $6 RETURNING *',
+      [name, email, phone, address, city, req.params.id]
+    );
+    res.json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete('/api/customers/:id', authenticateToken, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM customers WHERE id = $1', [req.params.id]);
+    res.json({ message: 'Customer deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/* ================================
+   SALES ROUTES
+=============================== */
+
+app.get('/api/sales', authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT s.*, m.name as medicine_name, c.name as customer_name 
+      FROM sales_transactions s 
+      LEFT JOIN medicines m ON s.medicine_id = m.id 
+      LEFT JOIN customers c ON s.customer_id = c.id
+      ORDER BY s.transaction_date DESC
+    `);
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/sales', authenticateToken, async (req, res) => {
+  try {
+    const { customer_id, medicine_id, quantity, unit_price, payment_method } = req.body;
+    const total_amount = quantity * unit_price;
+
+    const result = await pool.query(
+      'INSERT INTO sales_transactions (customer_id, medicine_id, quantity, unit_price, total_amount, payment_method) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+      [customer_id || null, medicine_id, quantity, unit_price, total_amount, payment_method]
+    );
+
+    // Update medicine quantity
+    await pool.query(
+      'UPDATE medicines SET quantity = quantity - $1 WHERE id = $2',
+      [quantity, medicine_id]
+    );
+
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/* ================================
    PRESCRIPTIONS ROUTES
-================================ */
+=============================== */
 
-// CREATE PRESCRIPTION
-app.post("/api/prescriptions", authenticateToken, (req, res) => {
-  const { customer_id, medicine_id, quantity, prescribed_by, prescription_date, expiry_date, notes } = req.body;
-
-  if (!customer_id || !medicine_id || !quantity) {
-    return res.status(400).json({ message: "Required fields missing" });
+app.get('/api/prescriptions', authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT p.*, m.name as medicine_name, c.name as customer_name 
+      FROM prescriptions p 
+      LEFT JOIN medicines m ON p.medicine_id = m.id 
+      LEFT JOIN customers c ON p.customer_id = c.id
+      ORDER BY p.created_at DESC
+    `);
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
-
-  db.run(
-    `INSERT INTO prescriptions (customer_id, medicine_id, quantity, prescribed_by, prescription_date, expiry_date, notes, status)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')`,
-    [customer_id, medicine_id, quantity, prescribed_by, prescription_date, expiry_date, notes],
-    function (err) {
-      if (err) {
-        return res.status(400).json({ message: "Error creating prescription" });
-      }
-
-      res.status(201).json({
-        message: "Prescription created successfully",
-        prescriptionId: this.lastID,
-      });
-    }
-  );
 });
 
-// GET ALL PRESCRIPTIONS
-app.get("/api/prescriptions", authenticateToken, (req, res) => {
-  db.all(
-    `SELECT p.*, c.name as customer_name, m.name as medicine_name
-     FROM prescriptions p
-     LEFT JOIN customers c ON p.customer_id = c.id
-     LEFT JOIN medicines m ON p.medicine_id = m.id
-     ORDER BY p.created_at DESC`,
-    [],
-    (err, rows) => {
-      if (err) {
-        return res.status(500).json({ message: "Error fetching prescriptions" });
-      }
-
-      res.json(rows);
-    }
-  );
-});
-
-// GET PRESCRIPTIONS BY CUSTOMER
-app.get("/api/prescriptions/customer/:id", authenticateToken, (req, res) => {
-  db.all(
-    `SELECT p.*, m.name as medicine_name
-     FROM prescriptions p
-     LEFT JOIN medicines m ON p.medicine_id = m.id
-     WHERE p.customer_id = ?
-     ORDER BY p.created_at DESC`,
-    [req.params.id],
-    (err, rows) => {
-      if (err) {
-        return res.status(500).json({ message: "Error fetching prescriptions" });
-      }
-
-      res.json(rows);
-    }
-  );
-});
-
-// UPDATE PRESCRIPTION STATUS
-app.put("/api/prescriptions/:id", authenticateToken, (req, res) => {
-  const { status } = req.body;
-
-  db.run(
-    `UPDATE prescriptions SET status = ? WHERE id = ?`,
-    [status, req.params.id],
-    function (err) {
-      if (err) {
-        return res.status(400).json({ message: "Error updating prescription" });
-      }
-
-      res.json({ message: "Prescription updated successfully" });
-    }
-  );
-});
-
-// DELETE PRESCRIPTION
-app.delete("/api/prescriptions/:id", authenticateToken, (req, res) => {
-  db.run(
-    "DELETE FROM prescriptions WHERE id = ?",
-    [req.params.id],
-    function (err) {
-      if (err) {
-        return res.status(400).json({ message: "Error deleting prescription" });
-      }
-
-      res.json({ message: "Prescription deleted successfully" });
-    }
-  );
-});
-
-/* ===============================
-   INVENTORY & ALERTS ROUTES
-================================ */
-
-// GET LOW STOCK MEDICINES
-app.get("/api/inventory/low-stock", authenticateToken, (req, res) => {
-  const threshold = req.query.threshold || 10;
-
-  db.all(
-    `SELECT * FROM medicines WHERE quantity <= ? AND quantity > 0`, 
-    [threshold],
-    (err, rows) => {
-      if (err) {
-        return res.status(500).json({ message: "Error fetching low stock items" });
-      }
-
-      res.json(rows);
-    }
-  );
-});
-
-// GET OUT OF STOCK MEDICINES
-app.get("/api/inventory/out-of-stock", authenticateToken, (req, res) => {
-  db.all(
-    `SELECT * FROM medicines WHERE quantity <= 0`,
-    [],
-    (err, rows) => {
-      if (err) {
-        return res.status(500).json({ message: "Error fetching out of stock items" });
-      }
-
-      res.json(rows);
-    }
-  );
-});
-
-// GET EXPIRED MEDICINES
-app.get("/api/inventory/expired", authenticateToken, (req, res) => {
-  db.all(
-    `SELECT * FROM medicines 
-     WHERE expiry_date IS NOT NULL 
-     AND expiry_date < date('now')`,
-    [],
-    (err, rows) => {
-      if (err) {
-        return res.status(500).json({ message: "Error fetching expired items" });
-      }
-
-      res.json(rows);
-    }
-  );
-});
-
-/* ===============================
-   REPORTS & ANALYTICS ROUTES
-================================ */
-
-// GET SALES SUMMARY
-app.get("/api/reports/sales-summary", authenticateToken, (req, res) => {
-  db.get(
-    `SELECT 
-      COUNT(*) as total_transactions,
-      SUM(total_amount) as total_revenue,
-      AVG(total_amount) as average_transaction,
-      MAX(total_amount) as highest_transaction
-     FROM sales_transactions`,
-    [],
-    (err, row) => {
-      if (err) {
-        return res.status(500).json({ message: "Error fetching sales summary" });
-      }
-
-      res.json(row || { total_transactions: 0, total_revenue: 0, average_transaction: 0, highest_transaction: 0 });
-    }
-  );
-});
-
-// GET TOP SELLING MEDICINES
-app.get("/api/reports/top-medicines", authenticateToken, (req, res) => {
-  db.all(
-    `SELECT m.id, m.name, m.selling_price, 
-      SUM(st.quantity) as total_sold,
-      SUM(st.total_amount) as total_revenue
-     FROM medicines m
-     LEFT JOIN sales_transactions st ON m.id = st.medicine_id
-     GROUP BY m.id
-     ORDER BY total_sold DESC
-     LIMIT 10`,
-    [],
-    (err, rows) => {
-      if (err) {
-        return res.status(500).json({ message: "Error fetching top medicines" });
-      }
-
-      res.json(rows);
-    }
-  );
-});
-
-// GET DAILY SALES REPORT
-app.get("/api/reports/daily-sales", authenticateToken, (req, res) => {
-  db.all(
-    `SELECT 
-      DATE(transaction_date) as date,
-      COUNT(*) as transaction_count,
-      SUM(total_amount) as daily_revenue
-     FROM sales_transactions
-     GROUP BY DATE(transaction_date)
-     ORDER BY date DESC
-     LIMIT 30`,
-    [],
-    (err, rows) => {
-      if (err) {
-        return res.status(500).json({ message: "Error fetching daily sales" });
-      }
-
-      res.json(rows);
-    }
-  );
-});
-
-// GET INVENTORY VALUE REPORT
-app.get("/api/reports/inventory-value", authenticateToken, (req, res) => {
-  db.get(
-    `SELECT 
-      COUNT(*) as total_items,
-      SUM(quantity) as total_quantity,
-      SUM(quantity * purchase_price) as total_purchase_value,
-      SUM(quantity * selling_price) as total_selling_value
-     FROM medicines`,
-    [],
-    (err, row) => {
-      if (err) {
-        return res.status(500).json({ message: "Error fetching inventory value" });
-      }
-
-      res.json(row || { total_items: 0, total_quantity: 0, total_purchase_value: 0, total_selling_value: 0 });
-    }
-  );
-});
-
-/* ===============================
-   SUPERADMIN ROUTES
-================================ */
-
-// ===== USER MANAGEMENT =====
-
-// GET ALL USERS (Superadmin only)
-app.get("/api/superadmin/users", authenticateToken, (req, res) => {
-  db.all(
-    `SELECT id, name, email, role, status, branch_id, created_at, last_login FROM users`,
-    [],
-    (err, rows) => {
-      if (err) {
-        return res.status(500).json({ message: "Error fetching users" });
-      }
-      res.json(rows);
-    }
-  );
-});
-
-// UPDATE USER ROLE
-app.put("/api/superadmin/users/:id/role", authenticateToken, (req, res) => {
-  const { id } = req.params;
-  const { role } = req.body;
-
-  db.run(
-    `UPDATE users SET role = ? WHERE id = ?`,
-    [role, id],
-    function (err) {
-      if (err) {
-        return res.status(500).json({ message: "Error updating user role" });
-      }
-
-      // Log audit
-      db.run(`INSERT INTO audit_logs (user_id, action, entity_type, entity_id, new_value) 
-              VALUES (?, ?, ?, ?, ?)`, [req.user.id, 'UPDATE', 'user', id, role]);
-
-      res.json({ message: "User role updated successfully" });
-    }
-  );
-});
-
-// SUSPEND USER
-app.put("/api/superadmin/users/:id/suspend", authenticateToken, (req, res) => {
-  const { id } = req.params;
-
-  db.run(
-    `UPDATE users SET status = 'suspended' WHERE id = ?`,
-    [id],
-    function (err) {
-      if (err) {
-        return res.status(500).json({ message: "Error suspending user" });
-      }
-
-      db.run(`INSERT INTO audit_logs (user_id, action, entity_type, entity_id, new_value) 
-              VALUES (?, ?, ?, ?, ?)`, [req.user.id, 'SUSPEND', 'user', id, 'suspended']);
-
-      res.json({ message: "User suspended successfully" });
-    }
-  );
-});
-
-// ACTIVATE USER
-app.put("/api/superadmin/users/:id/activate", authenticateToken, (req, res) => {
-  const { id } = req.params;
-
-  db.run(
-    `UPDATE users SET status = 'active' WHERE id = ?`,
-    [id],
-    function (err) {
-      if (err) {
-        return res.status(500).json({ message: "Error activating user" });
-      }
-
-      db.run(`INSERT INTO audit_logs (user_id, action, entity_type, entity_id, new_value) 
-              VALUES (?, ?, ?, ?, ?)`, [req.user.id, 'ACTIVATE', 'user', id, 'active']);
-
-      res.json({ message: "User activated successfully" });
-    }
-  );
-});
-
-// DELETE USER
-app.delete("/api/superadmin/users/:id", authenticateToken, (req, res) => {
-  const { id } = req.params;
-
-  db.run(
-    `DELETE FROM users WHERE id = ?`,
-    [id],
-    function (err) {
-      if (err) {
-        return res.status(500).json({ message: "Error deleting user" });
-      }
-
-      db.run(`INSERT INTO audit_logs (user_id, action, entity_type, entity_id) 
-              VALUES (?, ?, ?, ?)`, [req.user.id, 'DELETE', 'user', id]);
-
-      res.json({ message: "User deleted successfully" });
-    }
-  );
-});
-
-// RESET USER PASSWORD
-app.post("/api/superadmin/users/:id/reset-password", authenticateToken, (req, res) => {
-  const { id } = req.params;
-  const defaultPassword = "TempPassword123!";
-  const hashedPassword = bcrypt.hashSync(defaultPassword, 10);
-
-  db.run(
-    `UPDATE users SET password = ? WHERE id = ?`,
-    [hashedPassword, id],
-    function (err) {
-      if (err) {
-        return res.status(500).json({ message: "Error resetting password" });
-      }
-
-      db.run(`INSERT INTO audit_logs (user_id, action, entity_type, entity_id) 
-              VALUES (?, ?, ?, ?)`, [req.user.id, 'RESET_PASSWORD', 'user', id]);
-
-      res.json({ message: "Password reset to: " + defaultPassword });
-    }
-  );
-});
-
-// GET LOGIN HISTORY
-app.get("/api/superadmin/login-history", authenticateToken, (req, res) => {
-  db.all(
-    `SELECT lh.*, u.name, u.email FROM login_history lh
-     JOIN users u ON lh.user_id = u.id
-     ORDER BY lh.login_time DESC
-     LIMIT 100`,
-    [],
-    (err, rows) => {
-      if (err) {
-        return res.status(500).json({ message: "Error fetching login history" });
-      }
-      res.json(rows);
-    }
-  );
-});
-
-// ===== PHARMACY & BRANCH MANAGEMENT =====
-
-// GET ALL PHARMACIES
-app.get("/api/superadmin/pharmacies", authenticateToken, (req, res) => {
-  db.all(
-    `SELECT * FROM pharmacies`,
-    [],
-    (err, rows) => {
-      if (err) {
-        return res.status(500).json({ message: "Error fetching pharmacies" });
-      }
-      res.json(rows);
-    }
-  );
-});
-
-// ADD NEW PHARMACY
-app.post("/api/superadmin/pharmacies", authenticateToken, (req, res) => {
-  const { name, address, city, phone, email, license_number } = req.body;
-
-  db.run(
-    `INSERT INTO pharmacies (name, address, city, phone, email, license_number)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-    [name, address, city, phone, email, license_number],
-    function (err) {
-      if (err) {
-        return res.status(400).json({ message: "Error creating pharmacy" });
-      }
-
-      db.run(`INSERT INTO audit_logs (user_id, action, entity_type, entity_id) 
-              VALUES (?, ?, ?, ?)`, [req.user.id, 'CREATE', 'pharmacy', this.lastID]);
-
-      res.status(201).json({ message: "Pharmacy created successfully", id: this.lastID });
-    }
-  );
-});
-
-// GET ALL BRANCHES
-app.get("/api/superadmin/branches", authenticateToken, (req, res) => {
-  db.all(
-    `SELECT b.*, p.name as pharmacy_name, u.name as manager_name 
-     FROM branches b
-     LEFT JOIN pharmacies p ON b.pharmacy_id = p.id
-     LEFT JOIN users u ON b.manager_id = u.id`,
-    [],
-    (err, rows) => {
-      if (err) {
-        return res.status(500).json({ message: "Error fetching branches" });
-      }
-      res.json(rows);
-    }
-  );
-});
-
-// ADD NEW BRANCH
-app.post("/api/superadmin/branches", authenticateToken, (req, res) => {
-  const { pharmacy_id, name, address, city, phone, manager_id } = req.body;
-
-  db.run(
-    `INSERT INTO branches (pharmacy_id, name, address, city, phone, manager_id)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-    [pharmacy_id, name, address, city, phone, manager_id],
-    function (err) {
-      if (err) {
-        return res.status(400).json({ message: "Error creating branch" });
-      }
-
-      db.run(`INSERT INTO audit_logs (user_id, action, entity_type, entity_id) 
-              VALUES (?, ?, ?, ?)`, [req.user.id, 'CREATE', 'branch', this.lastID]);
-
-      res.status(201).json({ message: "Branch created successfully", id: this.lastID });
-    }
-  );
-});
-
-// ===== AUDIT LOGS =====
-
-// GET AUDIT LOGS
-app.get("/api/superadmin/audit-logs", authenticateToken, (req, res) => {
-  db.all(
-    `SELECT al.*, u.name as user_name, u.email 
-     FROM audit_logs al
-     LEFT JOIN users u ON al.user_id = u.id
-     ORDER BY al.timestamp DESC
-     LIMIT 500`,
-    [],
-    (err, rows) => {
-      if (err) {
-        return res.status(500).json({ message: "Error fetching audit logs" });
-      }
-      res.json(rows);
-    }
-  );
-});
-
-// ===== SYSTEM SETTINGS =====
-
-// GET SYSTEM SETTINGS
-app.get("/api/superadmin/settings", authenticateToken, (req, res) => {
-  db.all(
-    `SELECT * FROM system_settings`,
-    [],
-    (err, rows) => {
-      if (err) {
-        return res.status(500).json({ message: "Error fetching settings" });
-      }
-      res.json(rows);
-    }
-  );
-});
-
-// UPDATE SYSTEM SETTING
-app.post("/api/superadmin/settings", authenticateToken, (req, res) => {
-  const { setting_key, setting_value } = req.body;
-
-  if (!setting_key || setting_value === undefined) {
-    return res.status(400).json({ message: "Setting key and value required" });
+app.post('/api/prescriptions', authenticateToken, async (req, res) => {
+  try {
+    const { customer_id, medicine_id, quantity, prescribed_by, prescription_date, expiry_date, notes } = req.body;
+    const result = await pool.query(
+      'INSERT INTO prescriptions (customer_id, medicine_id, quantity, prescribed_by, prescription_date, expiry_date, notes) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+      [customer_id, medicine_id, quantity, prescribed_by, prescription_date, expiry_date, notes]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
-
-  db.run(
-    `INSERT OR REPLACE INTO system_settings (setting_key, setting_value, updated_at)
-     VALUES (?, ?, CURRENT_TIMESTAMP)`,
-    [setting_key, setting_value],
-    function (err) {
-      if (err) {
-        return res.status(500).json({ message: "Error updating setting" });
-      }
-
-      db.run(`INSERT INTO audit_logs (user_id, action, entity_type, new_value) 
-              VALUES (?, ?, ?, ?)`, [req.user.id, 'UPDATE_SETTING', 'setting', setting_key]);
-
-      res.json({ message: "Setting updated successfully" });
-    }
-  );
 });
 
-// DELETE SYSTEM SETTING
-app.delete("/api/superadmin/settings/:key", authenticateToken, (req, res) => {
-  const { key } = req.params;
-
-  db.run(
-    `DELETE FROM system_settings WHERE setting_key = ?`,
-    [decodeURIComponent(key)],
-    function (err) {
-      if (err) {
-        return res.status(500).json({ message: "Error deleting setting" });
-      }
-
-      db.run(`INSERT INTO audit_logs (user_id, action, entity_type, old_value) 
-              VALUES (?, ?, ?, ?)`, [req.user.id, 'DELETE_SETTING', 'setting', key]);
-
-      res.json({ message: "Setting deleted successfully" });
-    }
-  );
+app.put('/api/prescriptions/:id', authenticateToken, async (req, res) => {
+  try {
+    const { status } = req.body;
+    const result = await pool.query(
+      'UPDATE prescriptions SET status = $1 WHERE id = $2 RETURNING *',
+      [status, req.params.id]
+    );
+    res.json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
-// ===== GLOBAL STATISTICS =====
-
-// GET DASHBOARD STATISTICS
-app.get("/api/superadmin/dashboard-stats", authenticateToken, (req, res) => {
-  db.get(
-    `SELECT 
-      (SELECT COUNT(*) FROM users) as total_users,
-      (SELECT COUNT(*) FROM pharmacies) as total_pharmacies,
-      (SELECT COUNT(*) FROM branches) as total_branches,
-      (SELECT COUNT(*) FROM medicines) as total_products,
-      (SELECT COUNT(*) FROM suppliers) as total_suppliers,
-      (SELECT COUNT(*) FROM customers) as total_customers,
-      (SELECT SUM(total_amount) FROM sales_transactions WHERE DATE(transaction_date) = DATE('now')) as today_sales,
-      (SELECT SUM(total_amount) FROM sales_transactions WHERE strftime('%m', transaction_date) = strftime('%m', 'now') AND strftime('%Y', transaction_date) = strftime('%Y', 'now')) as monthly_sales,
-      (SELECT COUNT(*) FROM medicines WHERE quantity <= 5) as low_stock_items,
-      (SELECT COUNT(*) FROM medicines WHERE expiry_date IS NOT NULL AND expiry_date < DATE('now', '+7 days')) as expiring_soon,
-      (SELECT COUNT(*) FROM medicines WHERE quantity <= 0) as out_of_stock,
-      (SELECT COUNT(*) FROM prescriptions) as total_prescriptions
-    `,
-    [],
-    (err, row) => {
-      if (err) {
-        return res.status(500).json({ message: "Error fetching dashboard stats" });
-      }
-      res.json(row);
-    }
-  );
+app.delete('/api/prescriptions/:id', authenticateToken, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM prescriptions WHERE id = $1', [req.params.id]);
+    res.json({ message: 'Prescription deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
-// GET SALES BY BRANCH
-app.get("/api/superadmin/sales-by-branch", authenticateToken, (req, res) => {
-  db.all(
-    `SELECT 
-      b.name as branch_name,
-      COUNT(st.id) as total_transactions,
-      SUM(st.total_amount) as branch_revenue
-     FROM branches b
-     LEFT JOIN sales_transactions st ON 1=1
-     GROUP BY b.id`,
-    [],
-    (err, rows) => {
-      if (err) {
-        return res.status(500).json({ message: "Error fetching sales by branch" });
-      }
-      res.json(rows);
-    }
-  );
+/* ================================
+   SUPPLIERS ROUTES
+=============================== */
+
+app.get('/api/suppliers', authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM suppliers ORDER BY name');
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
-/* ===============================
+app.post('/api/suppliers', authenticateToken, async (req, res) => {
+  try {
+    const { name, email, phone, address, city, company_name } = req.body;
+    const result = await pool.query(
+      'INSERT INTO suppliers (name, email, phone, address, city, company_name) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+      [name, email, phone, address, city, company_name]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/* ================================
+   REPORTS ROUTES
+=============================== */
+
+app.get('/api/reports/sales-summary', authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        COALESCE(SUM(total_amount), 0) as total_revenue,
+        COUNT(*) as total_transactions
+      FROM sales_transactions
+    `);
+    res.json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/reports/top-medicines', authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT m.id, m.name, SUM(s.quantity) as total_sold, SUM(s.total_amount) as total_revenue
+      FROM sales_transactions s
+      JOIN medicines m ON s.medicine_id = m.id
+      GROUP BY m.id, m.name
+      ORDER BY total_sold DESC
+      LIMIT 10
+    `);
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/reports/daily-sales', authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        DATE(transaction_date) as date,
+        COUNT(*) as transaction_count,
+        SUM(total_amount) as daily_revenue
+      FROM sales_transactions
+      WHERE transaction_date >= CURRENT_DATE - INTERVAL '30 days'
+      GROUP BY DATE(transaction_date)
+      ORDER BY date
+    `);
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/* ================================
+   SETTINGS ROUTES
+=============================== */
+
+app.get('/api/settings', authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM settings');
+    const settings = {};
+    result.rows.forEach(row => {
+      settings[row.setting_key] = row.setting_value;
+    });
+    res.json(settings);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/settings', authenticateToken, async (req, res) => {
+  try {
+    const { key, value } = req.body;
+    await pool.query(
+      'INSERT INTO settings (setting_key, setting_value) VALUES ($1, $2) ON CONFLICT (setting_key) DO UPDATE SET setting_value = $2, updated_at = CURRENT_TIMESTAMP',
+      [key, value]
+    );
+    res.json({ message: 'Setting saved successfully' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete('/api/settings/:key', authenticateToken, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM settings WHERE setting_key = $1', [req.params.key]);
+    res.json({ message: 'Setting deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/* ================================
+   SUPER ADMIN ROUTES
+=============================== */
+
+// Dashboard stats
+app.get('/api/superadmin/dashboard-stats', authenticateToken, async (req, res) => {
+  try {
+    const [pharmacies, branches, users, medicines, suppliers, customers, sales, prescriptions] = await Promise.all([
+      pool.query('SELECT COUNT(*) as count FROM pharmacies'),
+      pool.query('SELECT COUNT(*) as count FROM branches'),
+      pool.query('SELECT COUNT(*) as count FROM users'),
+      pool.query('SELECT COUNT(*) as count FROM medicines'),
+      pool.query('SELECT COUNT(*) as count FROM suppliers'),
+      pool.query('SELECT COUNT(*) as count FROM customers'),
+      pool.query("SELECT COALESCE(SUM(total_amount), 0) as total, COUNT(*) as count FROM sales_transactions WHERE DATE(transaction_date) = CURRENT_DATE"),
+      pool.query('SELECT COUNT(*) as count FROM prescriptions')
+    ]);
+
+    const lowStock = await pool.query('SELECT COUNT(*) as count FROM medicines WHERE quantity <= 5');
+    const outOfStock = await pool.query('SELECT COUNT(*) as count FROM medicines WHERE quantity = 0');
+    const expiringSoon = await pool.query("SELECT COUNT(*) as count FROM medicines WHERE expiry_date <= CURRENT_DATE + INTERVAL '7 days'");
+
+    res.json({
+      total_pharmacies: parseInt(pharmacies.rows[0].count),
+      total_branches: parseInt(branches.rows[0].count),
+      total_users: parseInt(users.rows[0].count),
+      total_products: parseInt(medicines.rows[0].count),
+      total_suppliers: parseInt(suppliers.rows[0].count),
+      total_customers: parseInt(customers.rows[0].count),
+      today_sales: parseFloat(sales.rows[0].total),
+      total_prescriptions: parseInt(prescriptions.rows[0].count),
+      low_stock_items: parseInt(lowStock.rows[0].count),
+      out_of_stock: parseInt(outOfStock.rows[0].count),
+      expiring_soon: parseInt(expiringSoon.rows[0].count)
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Users management
+app.get('/api/superadmin/users', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'super-admin' && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+    const result = await pool.query('SELECT id, name, email, role, status, created_at FROM users ORDER BY created_at DESC');
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.put('/api/superadmin/users/:id/role', authenticateToken, async (req, res) => {
+  try {
+    const { role } = req.body;
+    await pool.query('UPDATE users SET role = $1 WHERE id = $2', [role, req.params.id]);
+    res.json({ message: 'Role updated successfully' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.put('/api/superadmin/users/:id/suspend', authenticateToken, async (req, res) => {
+  try {
+    await pool.query('UPDATE users SET status = $1 WHERE id = $2', ['suspended', req.params.id]);
+    res.json({ message: 'User suspended successfully' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.put('/api/superadmin/users/:id/activate', authenticateToken, async (req, res) => {
+  try {
+    await pool.query('UPDATE users SET status = $1 WHERE id = $2', ['active', req.params.id]);
+    res.json({ message: 'User activated successfully' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete('/api/superadmin/users/:id', authenticateToken, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM users WHERE id = $1', [req.params.id]);
+    res.json({ message: 'User deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Pharmacies
+app.get('/api/superadmin/pharmacies', authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM pharmacies ORDER BY name');
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/superadmin/pharmacies', authenticateToken, async (req, res) => {
+  try {
+    const { name, address, city, phone, email, license_number } = req.body;
+    const result = await pool.query(
+      'INSERT INTO pharmacies (name, address, city, phone, email, license_number) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+      [name, address, city, phone, email, license_number]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Branches
+app.get('/api/superadmin/branches', authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT b.*, p.name as pharmacy_name 
+      FROM branches b 
+      LEFT JOIN pharmacies p ON b.pharmacy_id = p.id 
+      ORDER BY b.name
+    `);
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/superadmin/branches', authenticateToken, async (req, res) => {
+  try {
+    const { pharmacy_id, name, address, city, phone } = req.body;
+    const result = await pool.query(
+      'INSERT INTO branches (pharmacy_id, name, address, city, phone) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [pharmacy_id, name, address, city, phone]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Audit logs
+app.get('/api/superadmin/audit-logs', authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT al.*, u.name as user_name, u.email 
+      FROM audit_logs al 
+      LEFT JOIN users u ON al.user_id = u.id 
+      ORDER BY al.timestamp DESC 
+      LIMIT 100
+    `);
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/* ================================
    SERVER START
-================================ */
+=============================== */
 
 const PORT = process.env.PORT || 5000;
-
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });

@@ -1,22 +1,26 @@
 /**
  * Database Configuration
- * Exports the SQLite database connection
+ * PostgreSQL connection using Supabase
  */
 
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
+const { Pool } = require('pg');
 
-const dbPath = path.resolve(__dirname, '../pharmacy.db');
-
-const db = new sqlite3.Database(dbPath, (err) => {
-  if (err) {
-    console.error('Database connection failed:', err);
-  } else {
-    console.log('SQLite Database Connected');
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL || 'postgresql://postgres.tfqcadngkvjsxeinmfbz:Pssw0rd@2026@aws-1-eu-north-1.pooler.supabase.com:6543/postgres',
+  ssl: {
+    rejectUnauthorized: false
   }
 });
 
-// Enable foreign keys
-db.run('PRAGMA foreign_keys = ON');
+pool.on('connect', () => {
+  console.log('PostgreSQL Database Connected');
+});
 
-module.exports = db;
+pool.on('error', (err) => {
+  console.error('Database connection error:', err);
+});
+
+module.exports = {
+  query: (text, params) => pool.query(text, params),
+  pool
+};
