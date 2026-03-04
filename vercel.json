@@ -1,22 +1,23 @@
 {
   "version": 2,
-  "functions": {
-    "backend/server.js": {
-      "maxDuration": 10
+  "builds": [
+    {
+      "src": "backend/server.js",
+      "use": "@vercel/node"
     }
-  },
-  "rewrites": [
+  ],
+  "routes": [
     {
-      "source": "/api/(.*)",
-      "destination": "/backend/server.js"
+      "src": "/api/(.*)",
+      "dest": "backend/server.js"
     },
     {
-      "source": "/health",
-      "destination": "/backend/server.js"
+      "src": "/health",
+      "dest": "backend/server.js"
     },
     {
-      "source": "/(.*)",
-      "destination": "/backend/server.js"
+      "src": "/(.*)",
+      "dest": "backend/server.js"
     }
   ],
   "env": {

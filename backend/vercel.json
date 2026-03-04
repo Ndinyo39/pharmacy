@@ -13,8 +13,8 @@
     }
   ],
   "env": {
-    "DATABASE_URL": "@database-url",
-    "JWT_SECRET": "@jwt-secret",
+    "DATABASE_URL": "postgresql://postgres.tfqcadngkvjsxeinmfbz:Pssw0rd%402026@aws-1-eu-north-1.pooler.supabase.com:6543/postgres",
+    "JWT_SECRET": "efc7a3178497cd94812b99b228858dc3b9fe5c3be70fe3e4d5ef4e706dd3ff51d4dd200f040588f7227b39c4d607662c5912fc4021880a467bfe2555f2a58706",
     "NODE_ENV": "production"
   }
 }
