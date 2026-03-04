@@ -4,6 +4,13 @@
     {
       "src": "backend/server.js",
       "use": "@vercel/node"
+    },
+    {
+      "src": "frontend/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"
+      }
     }
   ],
   "routes": [
@@ -16,13 +23,23 @@
       "dest": "backend/server.js"
     },
     {
+      "src": "/assets/(.*)",
+      "dest": "frontend/dist/assets/$1"
+    },
+    {
       "src": "/(.*)",
-      "dest": "backend/server.js"
+      "dest": "frontend/dist/$1",
+      "continue": true
+    },
+    {
+      "src": "/(.*)",
+      "dest": "frontend/dist/index.html"
     }
   ],
   "env": {
     "DATABASE_URL": "postgresql://postgres.tfqcadngkvjsxeinmfbz:Pssw0rd%402026@aws-1-eu-north-1.pooler.supabase.com:6543/postgres",
     "JWT_SECRET": "efc7a3178497cd94812b99b228858dc3b9fe5c3be70fe3e4d5ef4e706dd3ff51d4dd200f040588f7227b39c4d607662c5912fc4021880a467bfe2555f2a58706",
-    "NODE_ENV": "production"
+    "NODE_ENV": "production",
+    "VITE_API_URL": "/api"
   }
 }
