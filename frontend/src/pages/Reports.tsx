@@ -6,6 +6,7 @@ interface TopMedicine {
   name: string;
   total_sold?: number;
   total_revenue?: number;
+  total_profit?: number;
 }
 
 interface DailySales {
@@ -120,6 +121,7 @@ export const Reports: React.FC = () => {
                       <th className="py-3 px-2 text-xs font-bold text-gray-400 uppercase tracking-widest">Rank</th>
                       <th className="py-3 px-2 text-xs font-bold text-gray-400 uppercase tracking-widest">Product</th>
                       <th className="py-3 px-2 text-xs font-bold text-gray-400 uppercase tracking-widest text-right">Revenue</th>
+                      <th className="py-3 px-2 text-xs font-bold text-gray-400 uppercase tracking-widest text-right">Profit</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
@@ -137,6 +139,9 @@ export const Reports: React.FC = () => {
                           <td className="py-4 px-2 font-bold text-black">{medicine.name}</td>
                           <td className="py-4 px-2 text-right font-serif font-bold text-emerald-600">
                             {formatCurrency(medicine.total_revenue)}
+                          </td>
+                          <td className="py-4 px-2 text-right font-serif font-bold text-emerald-800">
+                            {formatCurrency(medicine.total_profit)}
                           </td>
                         </tr>
                       ))

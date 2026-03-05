@@ -7,6 +7,7 @@ interface SalesSummary {
   total_revenue: number;
   average_transaction: number;
   highest_transaction: number;
+  total_profit: number;
 }
 
 interface InventoryValue {
@@ -90,6 +91,8 @@ export const Dashboard: React.FC = () => {
     };
 
     fetchData();
+    const interval = setInterval(fetchData, 30000); // Auto-refresh every 30 seconds
+    return () => clearInterval(interval);
   }, []);
 
   if (loading) {
@@ -137,14 +140,19 @@ export const Dashboard: React.FC = () => {
             subtitle="All time earnings"
           />
           <MetricCard
-            title="Total Items"
-            value={inventoryValue?.total_items || 0}
-            subtitle={`${inventoryValue?.total_quantity || 0} units in stock`}
+            title="Stock Units"
+            value={inventoryValue?.total_quantity || 0}
+            subtitle={`${inventoryValue?.total_items || 0} product types`}
+          />
+          <MetricCard
+            title="Gross Profit"
+            value={`Ksh ${(salesSummary?.total_profit || 0).toLocaleString()}`}
+            subtitle="Earnings after costs"
           />
           <MetricCard
             title="Inventory Value"
             value={`Ksh ${(inventoryValue?.total_selling_value || 0).toLocaleString()}`}
-            subtitle="Current stock value"
+            subtitle="Potential retail value"
           />
         </div>
 

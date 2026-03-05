@@ -581,9 +581,13 @@ app.get('/api/reports/sales-summary', authenticateToken, async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT 
-        COALESCE(SUM(total_amount), 0) as total_revenue,
-        COUNT(*) as total_transactions
-      FROM sales_transactions
+        COALESCE(SUM(s.total_amount), 0) as total_revenue,
+        COUNT(*) as total_transactions,
+        COALESCE(AVG(s.total_amount), 0) as average_transaction,
+        COALESCE(MAX(s.total_amount), 0) as highest_transaction,
+        COALESCE(SUM(s.total_amount - (s.quantity * COALESCE(m.purchase_price, 0))), 0) as total_profit
+      FROM sales_transactions s
+      LEFT JOIN medicines m ON s.medicine_id = m.id
     `);
     res.json(result.rows[0]);
   } catch (error) {
@@ -594,7 +598,12 @@ app.get('/api/reports/sales-summary', authenticateToken, async (req, res) => {
 app.get('/api/reports/top-medicines', authenticateToken, async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT m.id, m.name, SUM(s.quantity) as total_sold, SUM(s.total_amount) as total_revenue
+      SELECT 
+        m.id, 
+        m.name, 
+        SUM(s.quantity) as total_sold, 
+        SUM(s.total_amount) as total_revenue,
+        SUM(s.total_amount - (s.quantity * COALESCE(m.purchase_price, 0))) as total_profit
       FROM sales_transactions s
       JOIN medicines m ON s.medicine_id = m.id
       GROUP BY m.id, m.name
