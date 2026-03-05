@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import logo from '../assets/logo.jpeg';
 
 // Navigation Link Component
 interface NavLinkProps {
@@ -58,7 +59,7 @@ export const Navigation: React.FC = () => {
       <div className="h-24 flex items-center px-4 border-b border-gray-300 bg-white flex-shrink-0">
         <div className="flex items-center gap-3">
           <img
-            src="/logo.jpeg"
+            src={logo}
             alt="Eagles' Home Based Nursing Care"
             className="w-14 h-14 object-contain"
           />
@@ -130,7 +131,7 @@ export const Navigation: React.FC = () => {
       <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white border-b-4 border-yellow-400 shadow-md flex items-center justify-between px-4 h-16">
         <div className="flex items-center gap-3">
           <img
-            src="/logo.jpeg"
+            src={logo}
             alt="Eagles' Home Based Nursing Care"
             className="w-10 h-10 object-contain"
           />

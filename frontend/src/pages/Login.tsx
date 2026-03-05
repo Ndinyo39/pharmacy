@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { authAPI } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
+import logo from '../assets/logo.jpeg';
 
 export const Login: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -42,7 +43,7 @@ export const Login: React.FC = () => {
         {/* Logo Card */}
         <div className="bg-white rounded-t-lg shadow-lg p-6 text-center border-t-4 border-yellow-400">
           <img
-            src="/logo.jpeg"
+            src={logo}
             alt="Eagles' Home Based Nursing Care"
             className="w-24 h-24 object-contain mx-auto mb-3"
           />
