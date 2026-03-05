@@ -128,7 +128,6 @@ export const Prescriptions: React.FC = () => {
   });
 
   const pendingCount = prescriptions.filter(p => p.status === 'pending').length;
-  const completedCount = prescriptions.filter(p => p.status === 'completed').length;
 
   const getStatusBadge = (status: string) => {
     switch (status) {
