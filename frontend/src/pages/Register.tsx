@@ -91,12 +91,14 @@ export const Register: React.FC = () => {
 
       <div className="relative max-w-md w-full">
         {/* Logo Card */}
-        <div className="bg-white rounded-t-lg shadow-lg p-8 text-center border-t-4 border-yellow-400">
-          <div className="w-20 h-20 bg-black rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
-            <span className="text-yellow-400 font-serif font-bold text-3xl">E</span>
-          </div>
+        <div className="bg-white rounded-t-lg shadow-lg p-6 text-center border-t-4 border-yellow-400">
+          <img
+            src="/logo.jpeg"
+            alt="Eagles' Home Based Nursing Care"
+            className="w-24 h-24 object-contain mx-auto mb-3"
+          />
           <h1 className="text-2xl font-serif font-bold text-black">EAGLES' Pharmacy</h1>
-          <p className="text-gray-600 mt-2 text-sm">Management System</p>
+          <p className="text-gray-600 mt-1 text-sm">Management System</p>
         </div>
 
         {/* Form Card */}

@@ -19,8 +19,8 @@ const NavLink: React.FC<NavLinkProps> = ({ to, icon, children, onClick }) => {
       to={to}
       onClick={onClick}
       className={`flex items-center gap-3 px-4 py-3 text-sm font-bold transition-all duration-200 rounded-lg mx-2 ${isActive
-          ? 'bg-yellow-400 text-black shadow-md'
-          : 'text-black hover:bg-gray-200'
+        ? 'bg-yellow-400 text-black shadow-md'
+        : 'text-black hover:bg-gray-200'
         }`}
     >
       <span className="text-lg w-6 text-center">{icon}</span>
@@ -55,11 +55,13 @@ export const Navigation: React.FC = () => {
   const sidebarContent = (
     <>
       {/* Logo Section */}
-      <div className="h-24 flex items-center px-4 border-b border-gray-300 bg-gray-100 flex-shrink-0">
+      <div className="h-24 flex items-center px-4 border-b border-gray-300 bg-white flex-shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-yellow-400 rounded-lg flex items-center justify-center shadow-lg">
-            <span className="text-black font-serif font-bold text-xl">E</span>
-          </div>
+          <img
+            src="/logo.jpeg"
+            alt="Eagles' Home Based Nursing Care"
+            className="w-14 h-14 object-contain"
+          />
           <div>
             <h1 className="text-lg font-serif font-bold text-black tracking-wide">EAGLES'</h1>
             <p className="text-xs text-gray-600">Pharmacy System</p>
@@ -127,9 +129,11 @@ export const Navigation: React.FC = () => {
       {/* === MOBILE TOP BAR (hidden on desktop) === */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white border-b-4 border-yellow-400 shadow-md flex items-center justify-between px-4 h-16">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-yellow-400 rounded-lg flex items-center justify-center shadow">
-            <span className="text-black font-serif font-bold text-base">E</span>
-          </div>
+          <img
+            src="/logo.jpeg"
+            alt="Eagles' Home Based Nursing Care"
+            className="w-10 h-10 object-contain"
+          />
           <h1 className="text-base font-serif font-bold text-black">EAGLES' Pharmacy</h1>
         </div>
         <button
