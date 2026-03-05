@@ -22,7 +22,7 @@ function AppContent() {
 
   return (
     <Router>
-      <div className="min-h-screen bg-gray-100 ml-64">
+      <div className="min-h-screen bg-gray-100 lg:ml-64 pt-16 lg:pt-0">
         <Navigation />
         <Routes>
           <Route

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
@@ -7,20 +7,21 @@ interface NavLinkProps {
   to: string;
   icon: string;
   children: React.ReactNode;
+  onClick?: () => void;
 }
 
-const NavLink: React.FC<NavLinkProps> = ({ to, icon, children }) => {
+const NavLink: React.FC<NavLinkProps> = ({ to, icon, children, onClick }) => {
   const location = useLocation();
   const isActive = location.pathname === to;
 
   return (
     <Link
       to={to}
-      className={`flex items-center gap-3 px-4 py-3 text-sm font-bold transition-all duration-200 rounded-lg mx-2 ${
-        isActive
+      onClick={onClick}
+      className={`flex items-center gap-3 px-4 py-3 text-sm font-bold transition-all duration-200 rounded-lg mx-2 ${isActive
           ? 'bg-yellow-400 text-black shadow-md'
           : 'text-black hover:bg-gray-200'
-      }`}
+        }`}
     >
       <span className="text-lg w-6 text-center">{icon}</span>
       <span>{children}</span>
@@ -38,6 +39,7 @@ const SectionHeader: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 export const Navigation: React.FC = () => {
   const { user, logout, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -48,10 +50,12 @@ export const Navigation: React.FC = () => {
     return null;
   }
 
-  return (
-    <nav className="fixed left-0 top-0 h-screen bg-white text-black shadow-2xl z-50 w-64 flex flex-col border-r-4 border-gray-300">
+  const closeMobile = () => setMobileOpen(false);
+
+  const sidebarContent = (
+    <>
       {/* Logo Section */}
-      <div className="h-24 flex items-center px-4 border-b border-gray-300 bg-gray-100">
+      <div className="h-24 flex items-center px-4 border-b border-gray-300 bg-gray-100 flex-shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 bg-yellow-400 rounded-lg flex items-center justify-center shadow-lg">
             <span className="text-black font-serif font-bold text-xl">E</span>
@@ -68,31 +72,31 @@ export const Navigation: React.FC = () => {
         {/* Main Menu */}
         <div>
           <SectionHeader>MAIN MENU</SectionHeader>
-          <NavLink to="/dashboard" icon="🏠">Home</NavLink>
-          <NavLink to="/medicines" icon="💊">Medicines</NavLink>
-          <NavLink to="/customers" icon="👥">Customers</NavLink>
-          <NavLink to="/sales" icon="💰">Sales</NavLink>
-          <NavLink to="/prescriptions" icon="📋">Prescriptions</NavLink>
-          <NavLink to="/reports" icon="📊">Reports</NavLink>
+          <NavLink to="/dashboard" icon="🏠" onClick={closeMobile}>Home</NavLink>
+          <NavLink to="/medicines" icon="💊" onClick={closeMobile}>Medicines</NavLink>
+          <NavLink to="/customers" icon="👥" onClick={closeMobile}>Customers</NavLink>
+          <NavLink to="/sales" icon="💰" onClick={closeMobile}>Sales</NavLink>
+          <NavLink to="/prescriptions" icon="📋" onClick={closeMobile}>Prescriptions</NavLink>
+          <NavLink to="/reports" icon="📊" onClick={closeMobile}>Reports</NavLink>
         </div>
 
         {/* Administration - Only show for super-admin */}
         {user?.role === 'super-admin' && (
           <div>
             <SectionHeader>ADMINISTRATION</SectionHeader>
-            <NavLink to="/superadmin" icon="🛡️">Admin Panel</NavLink>
-            <NavLink to="/superadmin/users" icon="👤">Users</NavLink>
-            <NavLink to="/superadmin/pharmacies" icon="🏥">Pharmacies</NavLink>
-            <NavLink to="/superadmin/audit-logs" icon="📝">Audit Logs</NavLink>
-            <NavLink to="/superadmin/settings" icon="⚙️">Settings</NavLink>
+            <NavLink to="/superadmin" icon="🛡️" onClick={closeMobile}>Admin Panel</NavLink>
+            <NavLink to="/superadmin/users" icon="👤" onClick={closeMobile}>Users</NavLink>
+            <NavLink to="/superadmin/pharmacies" icon="🏥" onClick={closeMobile}>Pharmacies</NavLink>
+            <NavLink to="/superadmin/audit-logs" icon="📝" onClick={closeMobile}>Audit Logs</NavLink>
+            <NavLink to="/superadmin/settings" icon="⚙️" onClick={closeMobile}>Settings</NavLink>
           </div>
         )}
       </div>
 
       {/* User Section */}
-      <div className="p-4 border-t border-gray-300 bg-gray-100">
+      <div className="p-4 border-t border-gray-300 bg-gray-100 flex-shrink-0">
         <div className="flex items-center gap-3 mb-3 p-2 bg-gray-200 rounded-lg">
-          <div className="w-10 h-10 bg-yellow-400 rounded-full flex items-center justify-center">
+          <div className="w-10 h-10 bg-yellow-400 rounded-full flex items-center justify-center flex-shrink-0">
             <span className="text-black font-bold text-lg">
               {user?.name?.charAt(0).toUpperCase() || 'U'}
             </span>
@@ -110,6 +114,61 @@ export const Navigation: React.FC = () => {
           <span>Sign Out</span>
         </button>
       </div>
-    </nav>
+    </>
+  );
+
+  return (
+    <>
+      {/* === DESKTOP SIDEBAR (hidden on mobile) === */}
+      <nav className="fixed left-0 top-0 h-screen bg-white text-black shadow-2xl z-50 w-64 flex-col border-r-4 border-gray-300 hidden lg:flex">
+        {sidebarContent}
+      </nav>
+
+      {/* === MOBILE TOP BAR (hidden on desktop) === */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white border-b-4 border-yellow-400 shadow-md flex items-center justify-between px-4 h-16">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 bg-yellow-400 rounded-lg flex items-center justify-center shadow">
+            <span className="text-black font-serif font-bold text-base">E</span>
+          </div>
+          <h1 className="text-base font-serif font-bold text-black">EAGLES' Pharmacy</h1>
+        </div>
+        <button
+          onClick={() => setMobileOpen(true)}
+          className="p-2 rounded-lg hover:bg-gray-100 transition"
+          aria-label="Open menu"
+        >
+          {/* Hamburger icon */}
+          <svg className="w-6 h-6 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+      </div>
+
+      {/* === MOBILE DRAWER OVERLAY === */}
+      {mobileOpen && (
+        <div
+          className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-50"
+          onClick={closeMobile}
+        />
+      )}
+
+      {/* === MOBILE DRAWER PANEL === */}
+      <nav
+        className={`lg:hidden fixed left-0 top-0 h-screen bg-white text-black shadow-2xl z-[60] w-72 flex flex-col border-r-4 border-gray-300 transform transition-transform duration-300 ease-in-out ${mobileOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
+      >
+        {/* Close button inside drawer */}
+        <button
+          onClick={closeMobile}
+          className="absolute top-4 right-4 p-2 rounded-full hover:bg-gray-200 transition z-10"
+          aria-label="Close menu"
+        >
+          <svg className="w-5 h-5 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+        {sidebarContent}
+      </nav>
+    </>
   );
 };
