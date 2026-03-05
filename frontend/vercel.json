@@ -1,8 +1,8 @@
 {
   "rewrites": [
-    { "source": "/(.*)", "destination": "/" }
-  ],
-  "env": {
-    "VITE_API_URL": "@vite-api-url"
-  }
+    {
+      "source": "/(.*)",
+      "destination": "/"
+    }
+  ]
 }
