@@ -70,19 +70,59 @@ export const Dashboard: React.FC = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [sales, inventory, lowStock, outOfStock, expired] = await Promise.all([
-          reportsAPI.getSalesSummary(),
-          reportsAPI.getInventoryValue(),
-          inventoryAPI.getLowStock(10),
-          inventoryAPI.getOutOfStock(),
-          inventoryAPI.getExpired(),
-        ]);
+        // Fetch each section independently to handle partial failures
+        const fetchSales = async () => {
+          try {
+            const res = await reportsAPI.getSalesSummary();
+            setSalesSummary(res.data);
+          } catch (e) {
+            console.error('Dashboard: Sales fetch failed', e);
+          }
+        };
 
-        setSalesSummary(sales.data);
-        setInventoryValue(inventory.data);
-        setLowStockItems(lowStock.data);
-        setOutOfStockItems(outOfStock.data);
-        setExpiredItems(expired.data);
+        const fetchInventory = async () => {
+          try {
+            const res = await reportsAPI.getInventoryValue();
+            setInventoryValue(res.data);
+          } catch (e) {
+            console.error('Dashboard: Inventory fetch failed', e);
+          }
+        };
+
+        const fetchLowStock = async () => {
+          try {
+            const res = await inventoryAPI.getLowStock(10);
+            setLowStockItems(res.data);
+          } catch (e) {
+            console.error('Dashboard: Low stock fetch failed', e);
+          }
+        };
+
+        const fetchOutStock = async () => {
+          try {
+            const res = await inventoryAPI.getOutOfStock();
+            setOutOfStockItems(res.data);
+          } catch (e) {
+            console.error('Dashboard: Out of stock fetch failed', e);
+          }
+        };
+
+        const fetchExpired = async () => {
+          try {
+            const res = await inventoryAPI.getExpired();
+            setExpiredItems(res.data);
+          } catch (e) {
+            console.error('Dashboard: Expired fetch failed', e);
+          }
+        };
+
+        await Promise.all([
+          fetchSales(),
+          fetchInventory(),
+          fetchLowStock(),
+          fetchOutStock(),
+          fetchExpired(),
+        ]);
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
       } finally {

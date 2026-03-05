@@ -547,7 +547,7 @@ app.post('/api/suppliers', authenticateToken, async (req, res) => {
 
 app.get('/api/inventory/low-stock', authenticateToken, async (req, res) => {
   try {
-    const threshold = req.query.threshold || 5;
+    const threshold = parseInt(req.query.threshold) || 5;
     const result = await pool.query('SELECT * FROM medicines WHERE quantity <= $1 ORDER BY quantity ASC', [threshold]);
     res.json(result.rows);
   } catch (error) {
@@ -566,7 +566,13 @@ app.get('/api/inventory/out-of-stock', authenticateToken, async (req, res) => {
 
 app.get('/api/inventory/expired', authenticateToken, async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM medicines WHERE expiry_date < CURRENT_DATE ORDER BY expiry_date');
+    const result = await pool.query(`
+      SELECT * FROM medicines 
+      WHERE expiry_date IS NOT NULL 
+      AND expiry_date != '' 
+      AND expiry_date::DATE < CURRENT_DATE 
+      ORDER BY expiry_date::DATE
+    `);
     res.json(result.rows);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -581,11 +587,11 @@ app.get('/api/reports/sales-summary', authenticateToken, async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT 
-        COALESCE(SUM(s.total_amount), 0) as total_revenue,
-        COUNT(*) as total_transactions,
-        COALESCE(AVG(s.total_amount), 0) as average_transaction,
-        COALESCE(MAX(s.total_amount), 0) as highest_transaction,
-        COALESCE(SUM(s.total_amount - (s.quantity * COALESCE(m.purchase_price, 0))), 0) as total_profit
+        CAST(COALESCE(SUM(s.total_amount), 0) AS FLOAT) as total_revenue,
+        CAST(COUNT(*) AS INTEGER) as total_transactions,
+        CAST(COALESCE(AVG(s.total_amount), 0) AS FLOAT) as average_transaction,
+        CAST(COALESCE(MAX(s.total_amount), 0) AS FLOAT) as highest_transaction,
+        CAST(COALESCE(SUM(s.total_amount - (s.quantity * COALESCE(m.purchase_price, 0))), 0) AS FLOAT) as total_profit
       FROM sales_transactions s
       LEFT JOIN medicines m ON s.medicine_id = m.id
     `);
@@ -601,9 +607,9 @@ app.get('/api/reports/top-medicines', authenticateToken, async (req, res) => {
       SELECT 
         m.id, 
         m.name, 
-        SUM(s.quantity) as total_sold, 
-        SUM(s.total_amount) as total_revenue,
-        SUM(s.total_amount - (s.quantity * COALESCE(m.purchase_price, 0))) as total_profit
+        CAST(SUM(s.quantity) AS INTEGER) as total_sold, 
+        CAST(SUM(s.total_amount) AS FLOAT) as total_revenue,
+        CAST(SUM(s.total_amount - (s.quantity * COALESCE(m.purchase_price, 0))) AS FLOAT) as total_profit
       FROM sales_transactions s
       JOIN medicines m ON s.medicine_id = m.id
       GROUP BY m.id, m.name
@@ -640,8 +646,8 @@ app.get('/api/reports/inventory-value', authenticateToken, async (req, res) => {
       SELECT 
         CAST(COUNT(*) AS INTEGER) as total_items,
         CAST(COALESCE(SUM(quantity), 0) AS INTEGER) as total_quantity,
-        COALESCE(SUM(quantity * purchase_price), 0) as total_purchase_value,
-        COALESCE(SUM(quantity * selling_price), 0) as total_selling_value
+        CAST(COALESCE(SUM(quantity * purchase_price), 0) AS FLOAT) as total_purchase_value,
+        CAST(COALESCE(SUM(quantity * selling_price), 0) AS FLOAT) as total_selling_value
       FROM medicines
     `);
     res.json(result.rows[0]);
