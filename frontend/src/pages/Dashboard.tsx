@@ -61,21 +61,27 @@ export const Dashboard: React.FC = () => {
   const [salesSummary, setSalesSummary] = useState<SalesSummary | null>(null);
   const [inventoryValue, setInventoryValue] = useState<InventoryValue | null>(null);
   const [lowStockItems, setLowStockItems] = useState<LowStockItem[]>([]);
+  const [outOfStockItems, setOutOfStockItems] = useState<any[]>([]);
+  const [expiredItems, setExpiredItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [sales, inventory, lowStock] = await Promise.all([
+        const [sales, inventory, lowStock, outOfStock, expired] = await Promise.all([
           reportsAPI.getSalesSummary(),
           reportsAPI.getInventoryValue(),
           inventoryAPI.getLowStock(10),
+          inventoryAPI.getOutOfStock(),
+          inventoryAPI.getExpired(),
         ]);
 
         setSalesSummary(sales.data);
         setInventoryValue(inventory.data);
         setLowStockItems(lowStock.data);
+        setOutOfStockItems(outOfStock.data);
+        setExpiredItems(expired.data);
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
       } finally {
@@ -108,11 +114,11 @@ export const Dashboard: React.FC = () => {
               <p className="text-gray-600 mt-1">Welcome back, {user?.name}</p>
             </div>
             <div className="text-right">
-              <p className="text-sm text-navy-400">{new Date().toLocaleDateString('en-US', { 
-                weekday: 'long', 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
+              <p className="text-sm text-navy-400">{new Date().toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
               })}</p>
             </div>
           </div>
@@ -142,66 +148,123 @@ export const Dashboard: React.FC = () => {
           />
         </div>
 
-        {/* Low Stock Alert */}
-        <div className="bg-white rounded-classic shadow-card overflow-hidden">
-          <div className="bg-navy-900 px-6 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-gold-500 rounded-full flex items-center justify-center">
-                <span className="text-navy-900 font-bold">!</span>
+        {/* Alerts Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          {/* Low Stock Alert */}
+          <div className="bg-white rounded-classic shadow-card overflow-hidden h-fit">
+            <div className="bg-amber-500 px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="text-xl">⚠️</span>
+                <h2 className="text-xl font-serif font-bold text-white">Low Stock Alert</h2>
               </div>
-              <h2 className="text-xl font-serif font-bold text-white">Low Stock Alert</h2>
+              <span className="bg-white text-amber-600 text-xs font-bold px-3 py-1 rounded-full">
+                {lowStockItems.length} Items
+              </span>
             </div>
-            <span className="bg-crimson-500 text-white text-xs font-medium px-3 py-1 rounded-full">
-              {lowStockItems.length} Items
-            </span>
-          </div>
-          
-          <div className="p-6">
-            {lowStockItems.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b-2 border-navy-100">
-                      <th className="text-left py-3 px-4 font-semibold text-navy-700 text-sm uppercase tracking-wide">
-                        Medicine Name
-                      </th>
-                      <th className="text-left py-3 px-4 font-semibold text-navy-700 text-sm uppercase tracking-wide">
-                        Current Stock
-                      </th>
-                      <th className="text-left py-3 px-4 font-semibold text-navy-700 text-sm uppercase tracking-wide">
-                        Status
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {lowStockItems.map((item) => (
-                      <tr key={item.id} className="border-b border-navy-100 hover:bg-navy-50 transition-colors duration-150">
-                        <td className="py-4 px-4 font-medium text-navy-900">{item.name}</td>
-                        <td className="py-4 px-4">
-                          <span className="font-semibold text-crimson-600">
-                            {item.quantity} units
-                          </span>
-                        </td>
-                        <td className="py-4 px-4">
-                          <span className="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide">
-                            Low Stock
-                          </span>
-                        </td>
+
+            <div className="p-4">
+              {lowStockItems.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-100">
+                        <th className="text-left py-2 px-3 text-gray-500">Name</th>
+                        <th className="text-left py-2 px-3 text-gray-500">Stock</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="text-center py-12">
-                <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <span className="text-emerald-600 text-2xl">✓</span>
+                    </thead>
+                    <tbody>
+                      {lowStockItems.slice(0, 5).map((item) => (
+                        <tr key={item.id} className="border-b border-gray-50">
+                          <td className="py-2 px-3 font-medium text-gray-900">{item.name}</td>
+                          <td className="py-2 px-3 text-amber-600 font-bold">{item.quantity} left</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-                <p className="text-navy-700 font-medium text-lg">All medicines are well stocked!</p>
-                <p className="text-navy-400 text-sm mt-1">No items require immediate attention</p>
-              </div>
-            )}
+              ) : (
+                <p className="text-center py-4 text-emerald-600 font-medium font-bold">✓ All stock levels healthy</p>
+              )}
+            </div>
           </div>
+
+          {/* Out of Stock Alert */}
+          <div className="bg-white rounded-classic shadow-card overflow-hidden h-fit">
+            <div className="bg-red-600 px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="text-xl">🚨</span>
+                <h2 className="text-xl font-serif font-bold text-white">Out of Stock</h2>
+              </div>
+              <span className="bg-white text-red-600 text-xs font-bold px-3 py-1 rounded-full">
+                {outOfStockItems.length} Items
+              </span>
+            </div>
+
+            <div className="p-4">
+              {outOfStockItems.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-100">
+                        <th className="text-left py-2 px-3 text-gray-500">Name</th>
+                        <th className="text-left py-2 px-3 text-gray-500">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {outOfStockItems.slice(0, 5).map((item) => (
+                        <tr key={item.id} className="border-b border-gray-50">
+                          <td className="py-2 px-3 font-medium text-gray-900">{item.name}</td>
+                          <td className="py-2 px-3 text-red-600 font-bold">REORDER NOW</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-center py-4 text-emerald-600 font-medium font-bold">✓ No items out of stock</p>
+              )}
+            </div>
+          </div>
+
+          {/* Expired Items Alert */}
+          {expiredItems.length > 0 && (
+            <div className="bg-white rounded-classic shadow-card overflow-hidden h-fit col-span-1 lg:col-span-2">
+              <div className="bg-purple-700 px-6 py-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="text-xl">📅</span>
+                  <h2 className="text-xl font-serif font-bold text-white">Expired Medicines</h2>
+                </div>
+                <span className="bg-white text-purple-700 text-xs font-bold px-3 py-1 rounded-full">
+                  {expiredItems.length} Items
+                </span>
+              </div>
+
+              <div className="p-4">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-100">
+                        <th className="text-left py-2 px-3 text-gray-500">Medicine Name</th>
+                        <th className="text-left py-2 px-3 text-gray-500">Expiry Date</th>
+                        <th className="text-left py-2 px-3 text-gray-500">Batch #</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {expiredItems.slice(0, 5).map((item) => (
+                        <tr key={item.id} className="border-b border-gray-50">
+                          <td className="py-2 px-3 font-medium text-gray-900">{item.name}</td>
+                          <td className="py-2 px-3 text-purple-600 font-bold">
+                            {new Date(item.expiry_date).toLocaleDateString()}
+                          </td>
+                          <td className="py-2 px-3 text-gray-500">{item.batch_number}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Quick Stats Footer */}

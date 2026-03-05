@@ -426,6 +426,41 @@ app.post('/api/sales', authenticateToken, async (req, res) => {
   }
 });
 
+app.delete('/api/sales/:id', authenticateToken, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // Get sale details first
+    const saleResult = await client.query('SELECT medicine_id, quantity FROM sales_transactions WHERE id = $1', [req.params.id]);
+
+    if (saleResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Sale record not found' });
+    }
+
+    const { medicine_id, quantity } = saleResult.rows[0];
+
+    // Delete the sale record
+    await client.query('DELETE FROM sales_transactions WHERE id = $1', [req.params.id]);
+
+    // Restore medicine quantity
+    await client.query(
+      'UPDATE medicines SET quantity = quantity + $1 WHERE id = $2',
+      [quantity, medicine_id]
+    );
+
+    await client.query('COMMIT');
+    res.json({ message: 'Sale record deleted and inventory updated' });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: error.message });
+  } finally {
+    client.release();
+  }
+});
+
+
 /* ================================
    PRESCRIPTIONS ROUTES
 =============================== */

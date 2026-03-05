@@ -24,12 +24,12 @@ export const UserManagement: React.FC = () => {
   const roles = ['super-admin', 'admin', 'pharmacist', 'cashier', 'storekeeper', 'accountant'];
 
   const roleColors: Record<string, string> = {
-    'super-admin': 'bg-purple-100 text-purple-800',
-    'admin': 'bg-blue-100 text-blue-800',
-    'pharmacist': 'bg-green-100 text-green-800',
-    'cashier': 'bg-yellow-100 text-yellow-800',
-    'storekeeper': 'bg-orange-100 text-orange-800',
-    'accountant': 'bg-cyan-100 text-cyan-800',
+    'super-admin': 'bg-navy-900 text-gold-500',
+    'admin': 'bg-navy-50 text-navy-900',
+    'pharmacist': 'bg-emerald-50 text-emerald-800',
+    'cashier': 'bg-amber-50 text-amber-800',
+    'storekeeper': 'bg-purple-50 text-purple-800',
+    'accountant': 'bg-blue-50 text-blue-800',
   };
 
   useEffect(() => {
@@ -50,7 +50,7 @@ export const UserManagement: React.FC = () => {
 
   const handleSuspend = async (userId: number | undefined) => {
     if (!userId) return;
-    if (confirm('Are you sure you want to suspend this user?')) {
+    if (confirm('Authorize suspension of this operator account? Access will be revoked immediately.')) {
       try {
         await api.put(`/superadmin/users/${userId}/suspend`, {});
         fetchUsers();
@@ -62,7 +62,7 @@ export const UserManagement: React.FC = () => {
 
   const handleActivate = async (userId: number | undefined) => {
     if (!userId) return;
-    if (confirm('Are you sure you want to activate this user?')) {
+    if (confirm('Re-authorize this operator account? Full access will be restored.')) {
       try {
         await api.put(`/superadmin/users/${userId}/activate`, {});
         fetchUsers();
@@ -74,7 +74,7 @@ export const UserManagement: React.FC = () => {
 
   const handleResetPassword = async (userId: number | undefined) => {
     if (!userId) return;
-    if (confirm('Reset password for this user? A temporary password will be generated.')) {
+    if (confirm('Force reset of authorization credentials for this user?')) {
       try {
         const response = await api.post(`/superadmin/users/${userId}/reset-password`, {});
         alert(response.data.message);
@@ -98,7 +98,7 @@ export const UserManagement: React.FC = () => {
 
   const handleDelete = async (userId: number | undefined) => {
     if (!userId) return;
-    if (confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+    if (confirm('PERMANENTLY archive and purge this user profile from active management?')) {
       try {
         await api.delete(`/superadmin/users/${userId}`);
         fetchUsers();
@@ -109,7 +109,7 @@ export const UserManagement: React.FC = () => {
   };
 
   const filteredUsers = users.filter(user => {
-    const matchesSearch = 
+    const matchesSearch =
       user.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       user.email?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesRole = filterRole === 'all' || user.role === filterRole;
@@ -121,190 +121,152 @@ export const UserManagement: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="p-8 bg-gray-100 min-h-screen flex items-center justify-center">
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <div className="text-center">
-          <div className="w-12 h-12 border-4 border-black border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-black font-medium">Loading users...</p>
+          <div className="w-16 h-16 border-4 border-navy-100 border-t-gold-500 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-navy-900 font-serif font-bold">Synchronizing Identity Directory...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="p-6 bg-gray-100 min-h-screen">
+    <div className="p-4 md:p-8 bg-gray-100 min-h-screen">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+        <div className="bg-white rounded-lg shadow-sm p-6 mb-8 border-l-4 border-l-gold-500">
+          <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-6">
             <div>
-              <h1 className="text-3xl font-bold text-black">👥 User Management</h1>
-              <p className="text-gray-600 mt-1">
-                {users.length} users | 
-                <span className="text-green-600 font-bold"> {activeUsers} active</span> | 
-                <span className="text-red-600 font-bold"> {suspendedUsers} suspended</span>
+              <h1 className="text-3xl font-serif font-bold text-black uppercase tracking-tight">Identity & Access Control</h1>
+              <p className="text-gray-500 mt-1">
+                <span className="text-black font-bold">{users.length}</span> Registered Principals
+                <span className="mx-2">•</span>
+                <span className="text-emerald-600 font-bold">{activeUsers} Active</span>
+                <span className="mx-2">•</span>
+                <span className="text-red-600 font-bold">{suspendedUsers} Suspended</span>
               </p>
             </div>
+            <button
+              onClick={fetchUsers}
+              className="px-8 py-3.5 bg-black text-white font-bold rounded-lg shadow-lg hover:bg-gray-800 transition transform active:scale-95 flex items-center justify-center gap-2 uppercase tracking-widest text-xs"
+            >
+              🔄 Refresh Directory
+            </button>
           </div>
 
-          {/* Search and Filter */}
-          <div className="mt-4 flex flex-col md:flex-row gap-3">
-            <input
-              type="text"
-              placeholder="🔍 Search users..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="flex-1 px-4 py-3 border border-gray-300 rounded-lg text-black bg-gray-50"
-            />
+          <div className="mt-8 flex flex-col md:flex-row gap-4">
+            <div className="flex-1 flex items-center bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-1 focus-within:border-black transition">
+              <span className="text-gray-400">🔍</span>
+              <input
+                type="text"
+                placeholder="Search by Identity Name or Email Protocol..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full px-3 py-3 bg-transparent text-black font-bold outline-none placeholder:text-gray-300 placeholder:font-normal"
+              />
+            </div>
             <select
               value={filterRole}
               onChange={(e) => setFilterRole(e.target.value)}
-              className="px-4 py-3 border border-gray-300 rounded-lg text-black bg-white"
+              className="px-6 py-3 border-2 border-gray-100 rounded-xl text-black bg-white font-bold focus:border-black outline-none transition cursor-pointer"
             >
-              <option value="all">All Roles</option>
-              {roles.map((role) => (
-                <option key={role} value={role}>{role}</option>
-              ))}
+              <option value="all">Every Staff Rank</option>
+              {roles.map((role) => <option key={role} value={role}>{role}</option>)}
             </select>
           </div>
         </div>
 
-        {/* Users Table */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          {filteredUsers.length === 0 ? (
-            <div className="p-12 text-center">
-              <p className="text-gray-500 text-lg">No users found</p>
+        {/* Identity Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredUsers.map((user) => (
+            <div key={user.id} className="bg-white rounded-lg shadow-sm hover:shadow-md transition overflow-hidden group border border-gray-200">
+              <div className="p-6">
+                <div className="flex justify-between items-start mb-6">
+                  <div className="w-14 h-14 bg-navy-50 text-navy-900 rounded-full flex items-center justify-center font-serif font-bold text-2xl uppercase group-hover:bg-navy-900 group-hover:text-gold-500 transition duration-300">
+                    {user.name.charAt(0)}
+                  </div>
+                  <div className="text-right">
+                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter ${roleColors[user.role]}`}>
+                      {user.role}
+                    </span>
+                    <div className="mt-2 text-[8px] font-bold text-gray-400 uppercase tracking-widest">
+                      Status: <span className={user.status === 'active' ? 'text-emerald-600' : 'text-red-600'}>{user.status?.toUpperCase() || 'ACTIVE'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <h3 className="text-xl font-serif font-bold text-black mb-1 truncate">{user.name}</h3>
+                <p className="text-gray-400 text-xs mb-6 truncate">{user.email}</p>
+
+                <div className="pt-4 border-t border-gray-50 flex items-center justify-between text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">
+                  <div>Registered On</div>
+                  <div className="text-black">{user.created_at ? new Date(user.created_at).toLocaleDateString() : 'Historical'}</div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-4 bg-gray-50 border-t border-gray-100 divide-x divide-gray-100">
+                <button onClick={() => { setSelectedUser(user); setNewRole(user.role); setShowModal(true); }} className="py-3 hover:bg-white transition flex justify-center group/btn" title="Privilege Shift">
+                  <span className="text-gray-400 group-hover/btn:text-black">⚡</span>
+                </button>
+                <button onClick={() => handleResetPassword(user.id)} className="py-3 hover:bg-white transition flex justify-center group/btn" title="Credential Reset">
+                  <span className="text-gray-400 group-hover/btn:text-black">🔑</span>
+                </button>
+                {user.status === 'active' ? (
+                  <button onClick={() => handleSuspend(user.id)} className="py-3 hover:bg-white transition flex justify-center group/btn" title="Revoke Access">
+                    <span className="text-gray-400 group-hover/btn:text-amber-600">⏸️</span>
+                  </button>
+                ) : (
+                  <button onClick={() => handleActivate(user.id)} className="py-3 hover:bg-emerald-50 transition flex justify-center group/btn" title="Restore Protocol">
+                    <span className="text-gray-400 group-hover/btn:text-emerald-600">▶️</span>
+                  </button>
+                )}
+                <button onClick={() => handleDelete(user.id)} className="py-3 hover:bg-red-50 transition flex justify-center group/btn" title="Purge Record">
+                  <span className="text-gray-400 group-hover/btn:text-red-600">🗑️</span>
+                </button>
+              </div>
             </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-black text-white">
-                  <tr>
-                    <th className="text-left py-3 px-4 font-bold">Name</th>
-                    <th className="text-left py-3 px-4 font-bold">Email</th>
-                    <th className="text-left py-3 px-4 font-bold">Role</th>
-                    <th className="text-left py-3 px-4 font-bold">Status</th>
-                    <th className="text-left py-3 px-4 font-bold">Created</th>
-                    <th className="text-left py-3 px-4 font-bold">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredUsers.map((user) => (
-                    <tr key={user.id} className="border-b hover:bg-gray-50">
-                      <td className="py-3 px-4 font-semibold text-black">{user.name}</td>
-                      <td className="py-3 px-4 text-gray-600">{user.email}</td>
-                      <td className="py-3 px-4">
-                        <span className={`px-3 py-1 rounded-full text-sm font-bold ${roleColors[user.role] || 'bg-gray-100 text-gray-800'}`}>
-                          {user.role}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className={`px-3 py-1 rounded-full text-sm font-bold ${
-                          user.status === 'active'
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-red-100 text-red-800'
-                        }`}>
-                          {user.status || 'active'}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-gray-600 text-sm">
-                        {user.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="flex gap-1 flex-wrap">
-                          <button
-                            onClick={() => {
-                              setSelectedUser(user);
-                              setNewRole(user.role);
-                              setShowModal(true);
-                            }}
-                            className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm font-medium"
-                            title="Change Role"
-                          >
-                            🔄 Role
-                          </button>
-                          <button
-                            onClick={() => handleResetPassword(user.id)}
-                            className="px-3 py-1 bg-orange-500 text-white rounded hover:bg-orange-600 text-sm font-medium"
-                            title="Reset Password"
-                          >
-                            🔑
-                          </button>
-                          {user.status === 'active' ? (
-                            <button
-                              onClick={() => handleSuspend(user.id)}
-                              className="px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600 text-sm font-medium"
-                              title="Suspend User"
-                            >
-                              ⏸️
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => handleActivate(user.id)}
-                              className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 text-sm font-medium"
-                              title="Activate User"
-                            >
-                              ▶️
-                            </button>
-                          )}
-                          <button
-                            onClick={() => handleDelete(user.id)}
-                            className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-sm font-medium"
-                            title="Delete User"
-                          >
-                            🗑️
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          ))}
         </div>
 
-        {/* Change Role Modal */}
-        {showModal && selectedUser && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl p-8 max-w-md w-full shadow-2xl">
-              <h3 className="text-2xl font-bold text-black mb-4">
-                Change Role for {selectedUser.name}
-              </h3>
-              <p className="text-gray-600 mb-6">Current role: <span className="font-bold">{selectedUser.role}</span></p>
-
-              <div className="mb-6">
-                <label className="block text-black font-bold mb-2">New Role:</label>
-                <select
-                  value={newRole}
-                  onChange={(e) => setNewRole(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-black bg-white"
-                >
-                  {roles.map((role) => (
-                    <option key={role} value={role}>
-                      {role}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex gap-4">
-                <button
-                  onClick={() => handleChangeRole(selectedUser.id)}
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg font-bold"
-                >
-                  ✓ Update Role
-                </button>
-                <button
-                  onClick={() => setShowModal(false)}
-                  className="flex-1 bg-gray-300 hover:bg-gray-400 text-black py-2 rounded-lg font-bold"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
+        {filteredUsers.length === 0 && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-20 text-center mt-8">
+            <span className="text-4xl">👥</span>
+            <h3 className="text-xl font-serif font-bold text-navy-900 mt-4">Database Empty</h3>
+            <p className="text-gray-400 text-sm">No identity profiles match your filtered criteria.</p>
           </div>
         )}
       </div>
+
+      {/* Role Elevation Modal */}
+      {showModal && selectedUser && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-lg shadow-2xl max-w-sm w-full animate-in zoom-in duration-200">
+            <div className="p-8">
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 bg-navy-900 text-gold-500 rounded-full flex items-center justify-center mx-auto mb-4 font-serif font-bold text-2xl uppercase">{selectedUser.name.charAt(0)}</div>
+                <h3 className="font-serif font-bold text-xl">Escalate Privileges</h3>
+                <p className="text-xs text-gray-400 mt-1 uppercase tracking-widest">{selectedUser.name}</p>
+              </div>
+
+              <div className="space-y-4 mb-8">
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">New Rank Assignment</label>
+                <select
+                  value={newRole}
+                  onChange={(e) => setNewRole(e.target.value)}
+                  className="w-full px-4 py-3 border-2 border-gray-100 rounded-xl text-black font-bold focus:border-black outline-none transition appearance-none bg-gray-50"
+                >
+                  {roles.map((role) => <option key={role} value={role}>{role}</option>)}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <button onClick={() => handleChangeRole(selectedUser.id)} className="bg-emerald-600 text-white font-bold py-3 rounded-lg text-sm hover:bg-emerald-700 transition">Confirm Rank</button>
+                <button onClick={() => setShowModal(false)} className="bg-gray-100 text-black font-bold py-3 rounded-lg text-sm hover:bg-gray-200 transition">Abort</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

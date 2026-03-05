@@ -120,7 +120,9 @@ export const salesAPI = {
   getAll: () => api.get('/sales'),
   getByCustomer: (customerId: number) => api.get(`/sales/customer/${customerId}`),
   create: (data: Sale) => api.post('/sales', data),
+  delete: (id: number) => api.delete(`/sales/${id}`),
 };
+
 
 // Prescription APIs
 export const prescriptionAPI = {

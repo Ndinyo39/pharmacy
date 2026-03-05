@@ -96,7 +96,7 @@ export const Prescriptions: React.FC = () => {
 
   const handleDelete = async (id: number | undefined) => {
     if (!id) return;
-    if (window.confirm('Are you sure you want to delete this prescription?')) {
+    if (window.confirm('Delete this clinical record definitively?')) {
       try {
         await prescriptionAPI.delete(id);
         fetchData();
@@ -133,39 +133,39 @@ export const Prescriptions: React.FC = () => {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'completed':
-        return <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-bold">✓ Completed</span>;
+        return <span className="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter">Verified ✓</span>;
       case 'pending':
-        return <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm font-bold">⏳ Pending</span>;
+        return <span className="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter">In Queue ⏳</span>;
       case 'cancelled':
-        return <span className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-bold">✕ Cancelled</span>;
+        return <span className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter">Revoked ✕</span>;
       default:
-        return <span className="bg-gray-100 text-gray-800 px-3 py-1 rounded-full text-sm font-bold">{status}</span>;
+        return <span className="bg-gray-100 text-gray-800 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter">{status}</span>;
     }
   };
 
   if (loading) {
     return (
-      <div className="p-8 bg-gray-100 min-h-screen flex items-center justify-center">
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <div className="text-center">
-          <div className="w-12 h-12 border-4 border-black border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-black font-medium">Loading prescriptions...</p>
+          <div className="w-16 h-16 border-4 border-navy-100 border-t-gold-500 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-navy-900 font-serif font-bold">Verifying Clinical Records...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="p-6 bg-gray-100 min-h-screen">
+    <div className="p-4 md:p-8 bg-gray-100 min-h-screen">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+        <div className="bg-white rounded-lg shadow-sm p-6 mb-8 border-l-4 border-l-gold-500">
+          <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-6">
             <div>
-              <h1 className="text-3xl font-bold text-black">💊 Prescription Management</h1>
-              <p className="text-gray-600 mt-1">
-                {prescriptions.length} prescriptions |
-                <span className="text-yellow-600 font-bold"> {pendingCount} pending</span> |
-                <span className="text-green-600 font-bold"> {completedCount} completed</span>
+              <h1 className="text-3xl font-serif font-bold text-black uppercase tracking-tight">Prescription Registry</h1>
+              <p className="text-gray-500 mt-1">
+                <span className="text-black font-bold">{prescriptions.length}</span> Total Logs
+                <span className="mx-2">•</span>
+                <span className="text-amber-600 font-bold">{pendingCount}</span> Pending Validation
               </p>
             </div>
             <button
@@ -176,207 +176,147 @@ export const Prescriptions: React.FC = () => {
                   setEditingId(null);
                 }
               }}
-              className="bg-black hover:bg-gray-800 text-white px-6 py-3 rounded-lg font-bold shadow transition"
+              className="px-8 py-3.5 bg-black text-white font-bold rounded-lg shadow-lg hover:bg-gray-800 transition transform active:scale-95 flex items-center justify-center gap-3 uppercase tracking-widest text-xs"
             >
-              {showForm ? '✕ Cancel' : '+ New Prescription'}
+              {showForm ? '✕ Close Terminal' : '📝 Log New Prescription'}
             </button>
           </div>
 
-          {/* Search and Filter */}
-          <div className="mt-4 flex flex-col md:flex-row gap-3">
-            <input
-              type="text"
-              placeholder="🔍 Search prescriptions..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="flex-1 px-4 py-3 border border-gray-300 rounded-lg text-black bg-gray-50"
-            />
+          <div className="mt-8 flex flex-col md:flex-row gap-4">
+            <div className="flex-1 flex items-center bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-1 focus-within:border-black transition">
+              <span className="text-gray-400">🔍</span>
+              <input
+                type="text"
+                placeholder="Search by Patient, Medicine, or Doctor..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full px-3 py-3 bg-transparent text-black font-bold outline-none placeholder:text-gray-300 placeholder:font-normal"
+              />
+            </div>
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-4 py-3 border border-gray-300 rounded-lg text-black bg-white"
+              className="px-6 py-3 border-2 border-gray-100 rounded-xl text-black bg-white font-bold focus:border-black outline-none transition cursor-pointer"
             >
-              <option value="all">All Status</option>
-              <option value="pending">Pending</option>
-              <option value="completed">Completed</option>
-              <option value="cancelled">Cancelled</option>
+              <option value="all">Global Status</option>
+              <option value="pending">Pending Only</option>
+              <option value="completed">Completed Records</option>
+              <option value="cancelled">Cancelled/Void</option>
             </select>
           </div>
         </div>
 
-        {/* Prescription Form */}
+        {/* Prescription Modal/Form */}
         {showForm && (
-          <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-            <h2 className="text-xl font-bold text-black mb-4">
-              {editingId ? '✏️ Update Prescription Status' : '📝 Create New Prescription'}
-            </h2>
-            <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-black font-bold mb-2 text-sm">
-                  Customer *
-                </label>
-                <select
-                  name="customer_id"
-                  value={formData.customer_id}
-                  onChange={handleInputChange}
-                  required
-                  disabled={!!editingId}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-black bg-white disabled:bg-gray-100"
-                >
-                  <option value="">Select a customer</option>
-                  {customers.map((customer) => (
-                    <option key={customer.id} value={customer.id}>
-                      {customer.name}
-                    </option>
-                  ))}
+          <div className="bg-white rounded-lg shadow-2xl overflow-hidden mb-8 border-2 border-black animate-in slide-in-from-top duration-300">
+            <div className="bg-black text-white px-6 py-4 font-bold uppercase tracking-[0.2em] text-[10px] flex items-center justify-between">
+              <span>Clinical Registry Entry</span>
+              <span className="text-gold-500 font-serif">PHR-RX-2026</span>
+            </div>
+            <form onSubmit={handleSubmit} className="p-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-1">
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Patient Name *</label>
+                <select name="customer_id" value={formData.customer_id} onChange={handleInputChange} required className="w-full px-4 py-3 border-2 border-gray-100 rounded-lg text-black font-bold focus:border-black outline-none transition">
+                  <option value="">Select Patient</option>
+                  {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+
+              <div className="lg:col-span-1">
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Medicine Product *</label>
+                <select name="medicine_id" value={formData.medicine_id} onChange={handleInputChange} required className="w-full px-4 py-3 border-2 border-gray-100 rounded-lg text-black font-bold focus:border-black outline-none transition">
+                  <option value="">Select Medicine</option>
+                  {medicines.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
                 </select>
               </div>
 
               <div>
-                <label className="block text-black font-bold mb-2 text-sm">
-                  Medicine *
-                </label>
-                <select
-                  name="medicine_id"
-                  value={formData.medicine_id}
-                  onChange={handleInputChange}
-                  required
-                  disabled={!!editingId}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-black bg-white disabled:bg-gray-100"
-                >
-                  <option value="">Select a medicine</option>
-                  {medicines.map((medicine) => (
-                    <option key={medicine.id} value={medicine.id}>
-                      {medicine.name}
-                    </option>
-                  ))}
-                </select>
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Quantity Log *</label>
+                <input type="number" name="quantity" value={formData.quantity} onChange={handleInputChange} required min="1" className="w-full px-4 py-3 border-2 border-gray-100 rounded-lg text-black font-bold focus:border-black outline-none transition" />
               </div>
 
               <div>
-                <label className="block text-black font-bold mb-2 text-sm">
-                  Quantity *
-                </label>
-                <input
-                  type="number"
-                  name="quantity"
-                  value={formData.quantity}
-                  onChange={handleInputChange}
-                  required
-                  min="1"
-                  disabled={!!editingId}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-black disabled:bg-gray-100"
-                />
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Prescribing Physician</label>
+                <input type="text" name="prescribed_by" value={formData.prescribed_by} onChange={handleInputChange} className="w-full px-4 py-3 border-2 border-gray-100 rounded-lg text-black font-bold focus:border-black outline-none transition" />
               </div>
 
               <div>
-                <label className="block text-black font-bold mb-2 text-sm">
-                  Prescribed By
-                </label>
-                <input
-                  type="text"
-                  name="prescribed_by"
-                  value={formData.prescribed_by}
-                  onChange={handleInputChange}
-                  disabled={!!editingId}
-                  placeholder="Dr. Name"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-black disabled:bg-gray-100"
-                />
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Issue Date</label>
+                <input type="date" name="prescription_date" value={formData.prescription_date} onChange={handleInputChange} className="w-full px-4 py-3 border-2 border-gray-100 rounded-lg text-black font-bold focus:border-black outline-none transition" />
               </div>
 
               <div>
-                <label className="block text-black font-bold mb-2 text-sm">
-                  Prescription Date
-                </label>
-                <input
-                  type="date"
-                  name="prescription_date"
-                  value={formData.prescription_date}
-                  onChange={handleInputChange}
-                  disabled={!!editingId}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-black disabled:bg-gray-100"
-                />
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Clinical Void Date</label>
+                <input type="date" name="expiry_date" value={formData.expiry_date} onChange={handleInputChange} className="w-full px-4 py-3 border-2 border-gray-100 rounded-lg text-black font-bold focus:border-black outline-none transition" />
               </div>
 
-              <div>
-                <label className="block text-black font-bold mb-2 text-sm">
-                  Expiry Date
-                </label>
-                <input
-                  type="date"
-                  name="expiry_date"
-                  value={formData.expiry_date}
-                  onChange={handleInputChange}
-                  disabled={!!editingId}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-black disabled:bg-gray-100"
-                />
+              <div className="lg:col-span-3">
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Physician Notes / Instructions</label>
+                <textarea name="notes" value={formData.notes} onChange={handleInputChange} className="w-full px-4 py-3 border-2 border-gray-100 rounded-lg text-black font-bold focus:border-black outline-none transition" rows={2} />
               </div>
 
-              <div className="md:col-span-2">
-                <label className="block text-black font-bold mb-2 text-sm">Notes</label>
-                <textarea
-                  name="notes"
-                  value={formData.notes}
-                  onChange={handleInputChange}
-                  disabled={!!editingId}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-black disabled:bg-gray-100"
-                  rows={3}
-                  placeholder="Additional notes..."
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <button
-                  type="submit"
-                  className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition w-full"
-                >
-                  {editingId ? '✓ Update Status' : '✓ Create Prescription'}
+              <div className="lg:col-span-3 mt-2">
+                <button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-lg shadow-lg flex items-center justify-center gap-3 uppercase tracking-widest">
+                  ✅ Standardize Prescription Entry
                 </button>
               </div>
             </form>
           </div>
         )}
 
-        {/* Prescription Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredPrescriptions.map((prescription) => (
-            <div key={prescription.id} className="bg-white rounded-lg shadow p-4 hover:shadow-lg transition">
-              <div className="flex justify-between items-start mb-3">
-                <div>
-                  <h3 className="font-bold text-black text-lg">{prescription.medicine_name}</h3>
-                  <p className="text-gray-500 text-sm">Customer: {prescription.customer_name || 'N/A'}</p>
+        {/* Prescription List */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredPrescriptions.map((p) => (
+            <div key={p.id} className="bg-white rounded-lg shadow-sm hover:shadow-md transition overflow-hidden group border border-gray-100">
+              <div className="p-6">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="w-10 h-10 bg-navy-50 text-gold-600 rounded-lg flex items-center justify-center font-bold text-lg group-hover:bg-navy-900 group-hover:text-gold-500 transition duration-300">
+                    Rx
+                  </div>
+                  {getStatusBadge(p.status || 'pending')}
                 </div>
-                {getStatusBadge(prescription.status || 'pending')}
-              </div>
 
-              <div className="space-y-2 text-sm">
-                <p className="text-gray-600">
-                  <span className="font-semibold">📦</span> Quantity: {prescription.quantity}
-                </p>
-                <p className="text-gray-600">
-                  <span className="font-semibold">👨‍⚕️</span> Prescribed by: {prescription.prescribed_by || 'N/A'}
-                </p>
-                <p className="text-gray-600">
-                  <span className="font-semibold">📅</span> Date: {prescription.prescription_date ? new Date(prescription.prescription_date).toLocaleDateString() : 'N/A'}
-                </p>
-                {prescription.notes && (
-                  <p className="text-gray-500 italic">"{prescription.notes}"</p>
+                <h3 className="text-xl font-serif font-bold text-black mb-1 group-hover:text-navy-900 transition">{p.medicine_name}</h3>
+                <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-6">Patient: {p.customer_name || 'Anonymous'}</p>
+
+                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-50 text-[11px] font-bold text-gray-400 uppercase tracking-widest">
+                  <div>
+                    <p className="mb-1">Physician</p>
+                    <p className="text-black text-sm capitalize">{p.prescribed_by || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="mb-1">Dosage/Qty</p>
+                    <p className="text-black text-sm">{p.quantity} Units</p>
+                  </div>
+                  <div className="col-span-2">
+                    <p className="mb-1">Registry Date</p>
+                    <p className="text-black text-sm">{p.prescription_date ? new Date(p.prescription_date).toLocaleDateString() : 'N/A'}</p>
+                  </div>
+                </div>
+
+                {p.notes && (
+                  <div className="mt-4 p-3 bg-gray-50 rounded-lg border-l-2 border-l-navy-200">
+                    <p className="text-xs text-gray-500 italic">"{p.notes}"</p>
+                  </div>
                 )}
               </div>
 
-              <div className="flex gap-2 mt-4 pt-3 border-t">
-                <select
-                  value={prescription.status || 'pending'}
-                  onChange={(e) => handleStatusChange(prescription.id, e.target.value)}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded text-black text-sm bg-white"
-                >
-                  <option value="pending">Pending</option>
-                  <option value="completed">Completed</option>
-                  <option value="cancelled">Cancelled</option>
-                </select>
+              <div className="flex bg-gray-50 border-t border-gray-100 items-center justify-between px-6 py-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase">Status:</span>
+                  <select
+                    value={p.status || 'pending'}
+                    onChange={(e) => handleStatusChange(p.id, e.target.value)}
+                    className="bg-transparent text-xs font-black text-black outline-none cursor-pointer hover:underline"
+                  >
+                    <option value="pending">Pending</option>
+                    <option value="completed">Verified</option>
+                    <option value="cancelled">Void</option>
+                  </select>
+                </div>
                 <button
-                  onClick={() => handleDelete(prescription.id)}
-                  className="bg-red-50 hover:bg-red-100 text-red-600 font-medium py-2 px-3 rounded transition text-sm"
+                  onClick={() => handleDelete(p.id)}
+                  className="w-8 h-8 flex items-center justify-center text-gray-300 hover:text-red-500 hover:bg-red-50 rounded transition"
                 >
                   🗑️
                 </button>
@@ -386,8 +326,12 @@ export const Prescriptions: React.FC = () => {
         </div>
 
         {filteredPrescriptions.length === 0 && (
-          <div className="bg-white rounded-lg shadow p-12 text-center">
-            <p className="text-gray-500 text-lg">No prescriptions found</p>
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-20 text-center">
+            <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6">
+              <span className="text-4xl text-gray-200">💊</span>
+            </div>
+            <h3 className="text-xl font-serif font-bold text-navy-900 mb-2">No Records Found</h3>
+            <p className="text-gray-400 text-sm max-w-xs mx-auto">Try refining your search or log a new clinical prescription above.</p>
           </div>
         )}
       </div>
