@@ -507,6 +507,38 @@ app.post('/api/suppliers', authenticateToken, async (req, res) => {
 });
 
 /* ================================
+   INVENTORY ROUTES
+=============================== */
+
+app.get('/api/inventory/low-stock', authenticateToken, async (req, res) => {
+  try {
+    const threshold = req.query.threshold || 5;
+    const result = await pool.query('SELECT * FROM medicines WHERE quantity <= $1 ORDER BY quantity ASC', [threshold]);
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/inventory/out-of-stock', authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM medicines WHERE quantity = 0 ORDER BY name');
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/inventory/expired', authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM medicines WHERE expiry_date < CURRENT_DATE ORDER BY expiry_date');
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/* ================================
    REPORTS ROUTES
 =============================== */
 
@@ -553,6 +585,22 @@ app.get('/api/reports/daily-sales', authenticateToken, async (req, res) => {
       ORDER BY date
     `);
     res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/reports/inventory-value', authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        CAST(COUNT(*) AS INTEGER) as total_items,
+        CAST(COALESCE(SUM(quantity), 0) AS INTEGER) as total_quantity,
+        COALESCE(SUM(quantity * purchase_price), 0) as total_purchase_value,
+        COALESCE(SUM(quantity * selling_price), 0) as total_selling_value
+      FROM medicines
+    `);
+    res.json(result.rows[0]);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
