@@ -56,11 +56,22 @@ export const Prescriptions: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    const formattedData: Omit<Prescription, 'id'> = {
+      customer_id: parseInt(formData.customer_id),
+      medicine_id: parseInt(formData.medicine_id),
+      quantity: formData.quantity,
+      prescribed_by: formData.prescribed_by,
+      prescription_date: formData.prescription_date,
+      expiry_date: formData.expiry_date,
+      notes: formData.notes,
+      status: editingId ? undefined : 'pending',
+    };
+
     try {
       if (editingId) {
-        await prescriptionAPI.update(editingId, { status: formData as any });
+        await prescriptionAPI.update(editingId, { status: (formData as any).status || 'pending' });
       } else {
-        await prescriptionAPI.create(formData);
+        await prescriptionAPI.create(formattedData);
       }
 
       fetchData();
@@ -72,19 +83,6 @@ export const Prescriptions: React.FC = () => {
     }
   };
 
-  const handleEdit = (prescription: Prescription) => {
-    setFormData({
-      customer_id: prescription.customer_id?.toString() || '',
-      medicine_id: prescription.medicine_id?.toString() || '',
-      quantity: prescription.quantity || 1,
-      prescribed_by: prescription.prescribed_by || '',
-      prescription_date: prescription.prescription_date || '',
-      expiry_date: prescription.expiry_date || '',
-      notes: prescription.notes || '',
-    });
-    setEditingId(prescription.id ?? null);
-    setShowForm(true);
-  };
 
   const handleStatusChange = async (id: number | undefined, status: string) => {
     if (!id) return;
@@ -121,7 +119,7 @@ export const Prescriptions: React.FC = () => {
   };
 
   const filteredPrescriptions = prescriptions.filter(p => {
-    const matchesSearch = 
+    const matchesSearch =
       p.customer_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.medicine_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.prescribed_by?.toLowerCase().includes(searchQuery.toLowerCase());
@@ -165,8 +163,8 @@ export const Prescriptions: React.FC = () => {
             <div>
               <h1 className="text-3xl font-bold text-black">💊 Prescription Management</h1>
               <p className="text-gray-600 mt-1">
-                {prescriptions.length} prescriptions | 
-                <span className="text-yellow-600 font-bold"> {pendingCount} pending</span> | 
+                {prescriptions.length} prescriptions |
+                <span className="text-yellow-600 font-bold"> {pendingCount} pending</span> |
                 <span className="text-green-600 font-bold"> {completedCount} completed</span>
               </p>
             </div>
@@ -350,7 +348,7 @@ export const Prescriptions: React.FC = () => {
                 </div>
                 {getStatusBadge(prescription.status || 'pending')}
               </div>
-              
+
               <div className="space-y-2 text-sm">
                 <p className="text-gray-600">
                   <span className="font-semibold">📦</span> Quantity: {prescription.quantity}

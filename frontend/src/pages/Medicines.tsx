@@ -1,17 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { medicineAPI } from '../utils/api';
-
-interface Medicine {
-  id: number;
-  name: string;
-  generic_name: string;
-  batch_number: string;
-  barcode: string;
-  purchase_price: number;
-  selling_price: number;
-  quantity: number;
-  expiry_date: string;
-}
+import { medicineAPI, type Medicine } from '../utils/api';
 
 export const Medicines: React.FC = () => {
   const [medicines, setMedicines] = useState<Medicine[]>([]);
@@ -73,8 +61,17 @@ export const Medicines: React.FC = () => {
   };
 
   const handleEdit = (medicine: Medicine) => {
-    setFormData(medicine);
-    setEditingId(medicine.id);
+    setFormData({
+      name: medicine.name,
+      generic_name: medicine.generic_name || '',
+      batch_number: medicine.batch_number || '',
+      barcode: medicine.barcode || '',
+      purchase_price: medicine.purchase_price || 0,
+      selling_price: medicine.selling_price,
+      quantity: medicine.quantity,
+      expiry_date: medicine.expiry_date || '',
+    });
+    setEditingId(medicine.id ?? null);
     setShowForm(true);
   };
 
@@ -317,7 +314,7 @@ export const Medicines: React.FC = () => {
                         <td className="py-3 px-4 font-medium text-black">{medicine.name}</td>
                         <td className="py-3 px-4 text-gray-600">{medicine.generic_name || '-'}</td>
                         <td className="py-3 px-4 text-gray-600">{medicine.batch_number || '-'}</td>
-                        <td className="py-3 px-4 text-gray-600">Ksh {medicine.purchase_price.toFixed(2)}</td>
+                        <td className="py-3 px-4 text-gray-600">Ksh {(medicine.purchase_price || 0).toFixed(2)}</td>
                         <td className="py-3 px-4 font-bold text-black">Ksh {medicine.selling_price.toFixed(2)}</td>
                         <td className="py-3 px-4 font-bold text-black">{medicine.quantity}</td>
                         <td className="py-3 px-4">
@@ -338,7 +335,9 @@ export const Medicines: React.FC = () => {
                             Edit
                           </button>
                           <button
-                            onClick={() => handleDelete(medicine.id)}
+                            onClick={() => {
+                              if (medicine.id) handleDelete(medicine.id);
+                            }}
                             className="text-red-600 hover:text-red-800 font-bold"
                           >
                             Delete

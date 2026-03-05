@@ -66,6 +66,8 @@ export interface Prescription {
   expiry_date?: string;
   notes?: string;
   status?: string;
+  customer_name?: string;
+  medicine_name?: string;
 }
 
 export interface LoginCredentials {
