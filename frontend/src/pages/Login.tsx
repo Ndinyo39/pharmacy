@@ -108,7 +108,7 @@ export const Login: React.FC = () => {
 
         {/* Footer */}
         <p className="text-center text-gray-500 text-xs mt-6">
-          © 2024 EAGLES' Home Based Nursing Care. All rights reserved.
+          © 2026 EAGLES' Home Based Nursing Care. All rights reserved.
         </p>
       </div>
     </div>
