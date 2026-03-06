@@ -39,17 +39,24 @@ export const Medicines: React.FC = () => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: name.includes('price') || name === 'quantity' ? parseFloat(value) || 0 : value,
+      [name]: (name.includes('price') || name === 'quantity') ? (value === '' ? '' : parseFloat(value)) : value,
     }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const submitData = {
+      ...formData,
+      quantity: Number(formData.quantity) || 0,
+      purchase_price: Number(formData.purchase_price) || 0,
+      selling_price: Number(formData.selling_price) || 0,
+    };
+
     try {
       if (editingId) {
-        await medicineAPI.update(editingId, formData);
+        await medicineAPI.update(editingId, submitData);
       } else {
-        await medicineAPI.create(formData);
+        await medicineAPI.create(submitData);
       }
       fetchMedicines();
       setShowForm(false);
@@ -195,7 +202,30 @@ export const Medicines: React.FC = () => {
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Registry Quantity *</label>
-                <input type="number" name="quantity" value={formData.quantity} onChange={handleInputChange} required className="w-full px-4 py-3 border-2 border-gray-100 rounded-lg text-black font-bold focus:border-black outline-none transition" />
+                <div className="flex items-center">
+                  <button
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, quantity: Math.max(0, (Number(prev.quantity) || 0) - 1) }))}
+                    className="px-4 py-3 bg-gray-100 border-2 border-r-0 border-gray-100 rounded-l-lg hover:bg-gray-200 text-black font-bold outline-none transition"
+                  >
+                    −
+                  </button>
+                  <input
+                    type="number"
+                    name="quantity"
+                    value={formData.quantity}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-4 py-3 border-2 border-gray-100 text-center text-black font-bold focus:border-black outline-none transition [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, quantity: (Number(prev.quantity) || 0) + 1 }))}
+                    className="px-4 py-3 bg-gray-100 border-2 border-l-0 border-gray-100 rounded-r-lg hover:bg-gray-200 text-black font-bold outline-none transition"
+                  >
+                    +
+                  </button>
+                </div>
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Expiry Threshold</label>

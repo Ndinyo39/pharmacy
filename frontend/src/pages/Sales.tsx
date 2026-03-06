@@ -49,7 +49,7 @@ export const Sales: React.FC = () => {
   const [formData, setFormData] = useState({
     customer_id: '',
     medicine_id: '',
-    quantity: 1,
+    quantity: 1 as number | string,
     payment_method: 'cash',
   });
 
@@ -83,7 +83,7 @@ export const Sales: React.FC = () => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: name === 'quantity' ? parseInt(value) || 1 : value,
+      [name]: name === 'quantity' ? (value === '' ? '' : parseInt(value)) : value,
     }));
   };
 
@@ -105,7 +105,7 @@ export const Sales: React.FC = () => {
       return;
     }
 
-    if ((selectedMedicine.quantity || 0) < formData.quantity) {
+    if ((selectedMedicine.quantity || 0) < Number(formData.quantity)) {
       alert(`Not enough stock! Only ${selectedMedicine.quantity} available`);
       return;
     }
@@ -114,16 +114,16 @@ export const Sales: React.FC = () => {
       await salesAPI.create({
         customer_id: formData.customer_id ? parseInt(formData.customer_id) : undefined,
         medicine_id: parseInt(formData.medicine_id),
-        quantity: formData.quantity,
+        quantity: Number(formData.quantity) || 1,
         unit_price: Number(selectedMedicine.selling_price) || 0,
         payment_method: formData.payment_method,
       });
 
       const saleData: ReceiptData = {
         medicine_name: selectedMedicine.name || 'Unknown',
-        quantity: formData.quantity,
+        quantity: Number(formData.quantity) || 1,
         unit_price: selectedMedicine.selling_price || 0,
-        total_amount: (selectedMedicine.selling_price || 0) * formData.quantity,
+        total_amount: (selectedMedicine.selling_price || 0) * (Number(formData.quantity) || 1),
         payment_method: formData.payment_method,
         customer_name: customers.find(c => c.id === parseInt(formData.customer_id))?.name || 'Walk-in Customer',
         transaction_date: new Date().toISOString(),
@@ -159,7 +159,7 @@ export const Sales: React.FC = () => {
     setFormData({
       customer_id: '',
       medicine_id: '',
-      quantity: 1,
+      quantity: 1 as number | string,
       payment_method: 'cash',
     });
   };
@@ -287,15 +287,31 @@ export const Sales: React.FC = () => {
 
               <div>
                 <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Quantity</label>
-                <input
-                  type="number"
-                  name="quantity"
-                  value={formData.quantity}
-                  onChange={handleInputChange}
-                  required
-                  min="1"
-                  className="w-full px-4 py-3 border-2 border-gray-100 rounded-lg text-black bg-gray-50 font-bold focus:border-black outline-none transition"
-                />
+                <div className="flex items-center">
+                  <button
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, quantity: Math.max(1, (Number(prev.quantity) || 1) - 1) }))}
+                    className="px-4 py-3 bg-gray-100 border-2 border-r-0 border-gray-100 rounded-l-lg hover:bg-gray-200 text-black font-bold outline-none transition"
+                  >
+                    −
+                  </button>
+                  <input
+                    type="number"
+                    name="quantity"
+                    value={formData.quantity}
+                    onChange={handleInputChange}
+                    required
+                    min="1"
+                    className="w-full px-4 py-3 border-2 border-gray-100 text-center text-black bg-gray-50 font-bold focus:border-black outline-none transition [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, quantity: (Number(prev.quantity) || 0) + 1 }))}
+                    className="px-4 py-3 bg-gray-100 border-2 border-l-0 border-gray-100 rounded-r-lg hover:bg-gray-200 text-black font-bold outline-none transition"
+                  >
+                    +
+                  </button>
+                </div>
               </div>
 
               <div>
@@ -332,7 +348,7 @@ export const Sales: React.FC = () => {
                   type="submit"
                   className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-lg shadow-lg shadow-emerald-100 transition flex items-center justify-center gap-3 uppercase tracking-widest"
                 >
-                  Confirm & Finalize - Ksh {(medicines.find(m => m.id === parseInt(formData.medicine_id))?.selling_price || 0) * formData.quantity}
+                  Confirm & Finalize - Ksh {(medicines.find(m => m.id === parseInt(formData.medicine_id))?.selling_price || 0) * (Number(formData.quantity) || 0)}
                 </button>
               </div>
             </form>

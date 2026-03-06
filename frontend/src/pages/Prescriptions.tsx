@@ -13,7 +13,7 @@ export const Prescriptions: React.FC = () => {
   const [formData, setFormData] = useState({
     customer_id: '',
     medicine_id: '',
-    quantity: 1,
+    quantity: 1 as number | string,
     prescribed_by: '',
     prescription_date: '',
     expiry_date: '',
@@ -49,7 +49,7 @@ export const Prescriptions: React.FC = () => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: name === 'quantity' ? parseInt(value) || 1 : value,
+      [name]: name === 'quantity' ? (value === '' ? '' : parseInt(value)) : value,
     }));
   };
 
@@ -59,7 +59,7 @@ export const Prescriptions: React.FC = () => {
     const formattedData: Omit<Prescription, 'id'> = {
       customer_id: parseInt(formData.customer_id),
       medicine_id: parseInt(formData.medicine_id),
-      quantity: formData.quantity,
+      quantity: Number(formData.quantity) || 1,
       prescribed_by: formData.prescribed_by,
       prescription_date: formData.prescription_date,
       expiry_date: formData.expiry_date,
@@ -110,7 +110,7 @@ export const Prescriptions: React.FC = () => {
     setFormData({
       customer_id: '',
       medicine_id: '',
-      quantity: 1,
+      quantity: 1 as number | string,
       prescribed_by: '',
       prescription_date: '',
       expiry_date: '',
@@ -231,7 +231,31 @@ export const Prescriptions: React.FC = () => {
 
               <div>
                 <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Quantity Log *</label>
-                <input type="number" name="quantity" value={formData.quantity} onChange={handleInputChange} required min="1" className="w-full px-4 py-3 border-2 border-gray-100 rounded-lg text-black font-bold focus:border-black outline-none transition" />
+                <div className="flex items-center">
+                  <button
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, quantity: Math.max(1, (Number(prev.quantity) || 1) - 1) }))}
+                    className="px-4 py-3 bg-gray-100 border-2 border-r-0 border-gray-100 rounded-l-lg hover:bg-gray-200 text-black font-bold outline-none transition"
+                  >
+                    −
+                  </button>
+                  <input
+                    type="number"
+                    name="quantity"
+                    value={formData.quantity}
+                    onChange={handleInputChange}
+                    required
+                    min="1"
+                    className="w-full px-4 py-3 border-2 border-gray-100 text-center text-black bg-gray-50 font-bold focus:border-black outline-none transition [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, quantity: (Number(prev.quantity) || 0) + 1 }))}
+                    className="px-4 py-3 bg-gray-100 border-2 border-l-0 border-gray-100 rounded-r-lg hover:bg-gray-200 text-black font-bold outline-none transition"
+                  >
+                    +
+                  </button>
+                </div>
               </div>
 
               <div>
