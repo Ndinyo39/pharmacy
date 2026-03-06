@@ -72,7 +72,6 @@ export const Sales: React.FC = () => {
       setMedicines(medicinesResponse.data || []);
     } catch (error: any) {
       console.error('Error fetching data:', error);
-      alert('Failed to load transaction data: ' + (error.response?.data?.error || error.message));
     } finally {
       setLoading(false);
     }

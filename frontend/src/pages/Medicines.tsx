@@ -28,7 +28,6 @@ export const Medicines: React.FC = () => {
       setMedicines(response.data);
     } catch (error: any) {
       console.error('Error fetching medicines:', error);
-      alert('Failed to connect to pharmaceutical inventory: ' + (error.response?.data?.error || error.message));
     } finally {
       setLoading(false);
     }
