@@ -18,6 +18,21 @@ app.get("/health", (req, res) => {
   res.json({ status: "ok" });
 });
 
+app.get("/api/diag", async (req, res) => {
+  try {
+    const medCount = await pool.query('SELECT COUNT(*) FROM medicines');
+    const userCount = await pool.query('SELECT COUNT(*) FROM users');
+    res.json({
+      med_count: medCount.rows[0].count,
+      user_count: userCount.rows[0].count,
+      db_connected: !!pool,
+      env: process.env.NODE_ENV
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
 /* ================================
    DATABASE CONNECTION (PostgreSQL - Supabase)
