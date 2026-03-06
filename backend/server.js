@@ -36,8 +36,10 @@ app.get("/api/diag", async (req, res) => {
 app.get("/diag", async (req, res) => {
   try {
     const medCount = await pool.query('SELECT COUNT(*) FROM medicines');
+    const samples = await pool.query('SELECT name FROM medicines LIMIT 3');
     res.json({
       med_count: medCount.rows[0].count,
+      samples: samples.rows.map(r => r.name),
       db_connected: !!pool,
       origin: 'root'
     });
