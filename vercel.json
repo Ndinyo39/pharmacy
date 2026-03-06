@@ -23,10 +23,6 @@
       "dest": "backend/server.js"
     },
     {
-      "src": "/diag",
-      "dest": "backend/server.js"
-    },
-    {
       "src": "/assets/(.*)",
       "dest": "frontend/assets/$1"
     },

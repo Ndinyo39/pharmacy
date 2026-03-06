@@ -5,6 +5,8 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
 
+const JWT_SECRET = process.env.JWT_SECRET || 'efc7a3178497cd94812b99b228858dc3b9fe5c3be70fe3e4d5ef4e706dd3ff51d4dd200f040588f7227b39c4d607662c5912fc4021880a467bfe2555f2a58706';
+
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -16,36 +18,6 @@ app.get("/", (req, res) => {
 
 app.get("/health", (req, res) => {
   res.json({ status: "ok" });
-});
-
-app.get("/api/diag", async (req, res) => {
-  try {
-    const medCount = await pool.query('SELECT COUNT(*) FROM medicines');
-    const userCount = await pool.query('SELECT COUNT(*) FROM users');
-    res.json({
-      med_count: medCount.rows[0].count,
-      user_count: userCount.rows[0].count,
-      db_connected: !!pool,
-      env: process.env.NODE_ENV
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.get("/diag", async (req, res) => {
-  try {
-    const medCount = await pool.query('SELECT COUNT(*) FROM medicines');
-    const samples = await pool.query('SELECT name FROM medicines LIMIT 3');
-    res.json({
-      med_count: medCount.rows[0].count,
-      samples: samples.rows.map(r => r.name),
-      db_connected: !!pool,
-      origin: 'root'
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
 });
 
 
@@ -235,7 +207,7 @@ const authenticateToken = (req, res, next) => {
     return res.status(401).json({ error: 'Access token required' });
   }
 
-  jwt.verify(token, process.env.JWT_SECRET || 'default-secret-key', (err, user) => {
+  jwt.verify(token, JWT_SECRET, (err, user) => {
     if (err) {
       return res.status(403).json({ error: 'Invalid token' });
     }
@@ -289,7 +261,7 @@ app.post('/api/login', async (req, res) => {
 
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role },
-      process.env.JWT_SECRET || 'default-secret-key',
+      JWT_SECRET,
       { expiresIn: '24h' }
     );
 
