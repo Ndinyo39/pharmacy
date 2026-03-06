@@ -70,8 +70,9 @@ export const Sales: React.FC = () => {
       setSales(salesResponse.data || []);
       setCustomers(customersResponse.data || []);
       setMedicines(medicinesResponse.data || []);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching data:', error);
+      alert('Failed to load transaction data: ' + (error.response?.data?.error || error.message));
     } finally {
       setLoading(false);
     }

@@ -36,8 +36,9 @@ export const Prescriptions: React.FC = () => {
       setPrescriptions(prescriptionsResponse.data);
       setCustomers(customersResponse.data);
       setMedicines(medicinesResponse.data);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching data:', error);
+      alert('Failed to load clinical records: ' + (error.response?.data?.error || error.message));
     } finally {
       setLoading(false);
     }
